@@ -15,7 +15,7 @@ import telebot
 from telebot import types
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-ADMIN_ID = os.environ.get("TGC_ID")
+ADMIN_ID = 5376544115
 SCRIPT_URL = os.environ.get("SCRIPT_URL")
 PUBLIC_URL = os.environ.get("PUBLIC_URL")
 
