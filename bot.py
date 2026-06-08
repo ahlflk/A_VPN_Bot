@@ -370,7 +370,7 @@ def save_vip_to_sheet(message):
         "action": "insert",
         "user": data["id"],
         "name": data["name"],
-        "key": data["id"], // Telegram ID Is Used As Key Directly
+        "key": data["id"],
         "start": datetime.now().strftime("%d/%m/%Y"),
         "month": f"{val}{data['dtype']}"
     }
