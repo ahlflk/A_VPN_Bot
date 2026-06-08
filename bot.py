@@ -1,6 +1,6 @@
 # # All-in-One Safe Decryptor & Telegram VIP Management Bot (With Reseller Edit & Expiry Date)
-# Py By @AHLFLK2025 (Fully Fixed Reseller Bypass Leak - Token & Date Dual Protection)
-# Updated: Integrated flawlessly with Single-Sheet Google Apps Script System
+# Py By @AHLFLK2025 (Fully Fixed - Fixed to match Gas Script without changes)
+# Updated: Integrated flawlessly with Single-Sheet Google Apps Script System using Telegram ID for management
 
 # ==========================================
 # 1. CONFIGURATION & CORE BOT SETUP
@@ -37,7 +37,7 @@ DB_FILE = os.path.join(BASE_DIR, "keys_management.db")
 
 user_states = {}
 reseller_temp_data = {}
-MENU_BUTTONS = ["🌐 VPN Decrypt List", "➕ Add VIP User", "🔑 My VIP Users", "✏️ Edit VIP", "🗑 Delete VIP", "👤 Create Reseller", "📊 Reseller List", "✏️ Edit Reseller", "🗑 Delete Reseller", "🌐 View All VIPs", "💰 My Balance"]
+MENU_BUTTONS = ["🌐 VPN Decrypt List", "➕ Add VIP User", "🔑 My VIP Users", "🗑 Delete VIP", "👤 Create Reseller", "📊 Reseller List", "🗑 Delete Reseller", "🌐 View All VIPs", "💰 My Balance"]
 
 def get_admin_contact_markup():
     markup = types.InlineKeyboardMarkup()
@@ -46,7 +46,7 @@ def get_admin_contact_markup():
 
 @app.route('/')
 def home():
-    return "Decrypt & VPN APK Sheet-Linked Bot is Active!"
+    return "Decrypt & VPN Sheet-Linked Bot is Active!"
 
 @app.route('/' + BOT_TOKEN, methods=['POST'])
 def webhook():
@@ -222,7 +222,6 @@ def init_db():
         conn.close()
 
 def parse_sheet_date(date_str):
-    """ Sheet ထဲက ရက်စွဲ Format မျိုးစုံကို စစ်ထုတ်ဖတ်ယူခြင်း """
     for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%m/%d/%Y"):
         try:
             return datetime.strptime(date_str.strip(), fmt).strftime("%Y-%m-%d")
@@ -231,7 +230,7 @@ def parse_sheet_date(date_str):
     return datetime.now().strftime("%Y-%m-%d")
 
 def pull_data_from_google_sheet():
-    """ Google Sheet တစ်ခုတည်းကနေ VIP တွေနဲ့ Reseller တွေကို စနစ်တကျ ခွဲထုတ်ဖတ်ယူခြင်း """
+    """ Google Sheet မှ ဒေတာများကို ဆွဲယူ၍ Local DB သို့ ထည့်သွင်းခြင်း """
     if not SCRIPT_URL: return
     try:
         response = requests.get(SCRIPT_URL, timeout=12)
@@ -242,34 +241,30 @@ def pull_data_from_google_sheet():
             conn = sqlite3.connect(DB_FILE, check_same_thread=False)
             cursor = conn.cursor()
             
-            # Local DB ကို ရှင်းပြီး အသစ်ပြန်ထည့်မယ် (Admin ကလွဲရင်)
             cursor.execute("DELETE FROM auth_keys")
             cursor.execute("DELETE FROM users WHERE tg_id != ?", (ADMIN_ID,))
             
             for row in data_list:
                 t_id = row.get("Users")
                 k_str = row.get("Name") or ""
-                key_apk = row.get("Key") or ""
                 start_date = row.get("Start") or ""
                 month_val = row.get("Month") or "0"
                 exp_date_raw = row.get("Expiration") or ""
                 
-                # Sheet ထဲက Row အပို အလွတ် Error တွေကို ကျော်မယ်
-                if not t_id or str(t_id).strip() == "" or "1899" in str(exp_date_raw) or "-4618" in str(row.get("Valid")):
+                # Column A ကွက်လပ် သို့မဟုတ် Formula Error များကို စစ်ထုတ်ကျော်သွားရန်
+                if not t_id or str(t_id).strip() == "" or "1899" in str(exp_date_raw):
                     continue
                 
                 t_id_str = str(t_id).strip()
                 k_str = k_str.strip()
                 
-                # ပုံစံတူ ရက်စွဲဖြစ်အောင် ပြောင်းမယ်
                 parsed_start = parse_sheet_date(start_date)
                 parsed_exp = parse_sheet_date(exp_date_raw)
                 
-                # Name ထဲမှာ _Reseller ပါရင် Reseller Table ထဲထည့်မယ်
+                # Name ထဲတွင် _Reseller ပါဝင်ပါက Reseller အဖြစ် သတ်မှတ်မည်
                 if "_Reseller" in k_str:
                     try:
                         tg_id_val = int(t_id_str)
-                        # Month ထဲက တန်ဖိုးကို Token အဖြစ်ယူဆပြီး ရက်စွဲကို သက်တမ်းကုန်ရက်အဖြစ် သတ်မှတ်မယ်
                         cursor.execute("""
                             INSERT OR REPLACE INTO users (tg_id, username, role, token_balance, expire_date)
                             VALUES (?, ?, 'reseller', ?, ?)
@@ -277,7 +272,7 @@ def pull_data_from_google_sheet():
                     except:
                         continue
                 else:
-                    # သာမန် VIP User ဖြစ်ရင် auth_keys ထဲထည့်မယ်
+                    # သာမန် VIP User အဖြစ် ထည့်သွင်းမည်
                     cursor.execute("""
                         INSERT OR IGNORE INTO auth_keys (target_id, key_string, unit_val, duration_type, added_by, created_at)
                         VALUES (?, ?, ?, 'm', ?, ?)
@@ -323,7 +318,7 @@ def check_vip_status(user_id):
     
     conn = sqlite3.connect(DB_FILE, check_same_thread=False)
     try:
-        # ၁။ Reseller ဟုတ်မဟုတ် အရင်စစ်မယ်
+        # ၁။ Reseller ဟုတ်မဟုတ် စစ်ဆေးခြင်း
         cursor.execute("SELECT role, token_balance, expire_date FROM users WHERE tg_id = ?", (user_id,))
         user_row = cursor.fetchone()
         
@@ -337,7 +332,7 @@ def check_vip_status(user_id):
             except:
                 return False, "Date Error"
 
-        # ၂။ သာမန် VIP ဟုတ်မဟုတ် ဆက်စစ်မယ်
+        # ၂။ သာမန် VIP ဟုတ်မဟုတ် စစ်ဆေးခြင်း
         cursor.execute("SELECT unit_val, duration_type, created_at FROM auth_keys WHERE target_id = ?", (str(user_id),))
         row = cursor.fetchone()
         
@@ -383,7 +378,7 @@ def get_main_keyboard(user_id):
     
     if is_reseller(user_id) and (is_vip or user_id == ADMIN_ID):
         markup.row(types.KeyboardButton("➕ Add VIP User"), types.KeyboardButton("🔑 My VIP Users"))
-        markup.row(types.KeyboardButton("✏️ Edit VIP"), types.KeyboardButton("🗑 Delete VIP"))
+        markup.row(types.KeyboardButton("🗑 Delete VIP"))
         
         if is_admin(user_id):
             markup.row(types.KeyboardButton("💰 My Balance"), types.KeyboardButton("🌐 View All VIPs"))
@@ -395,7 +390,7 @@ def get_main_keyboard(user_id):
         
     if is_admin(user_id):
         markup.row(types.KeyboardButton("👤 Create Reseller"), types.KeyboardButton("📊 Reseller List"))
-        markup.row(types.KeyboardButton("✏️ Edit Reseller"), types.KeyboardButton("🗑 Delete Reseller"))
+        markup.row(types.KeyboardButton("🗑 Delete Reseller"))
         
     return markup
 
@@ -417,16 +412,12 @@ def handle_menu_buttons(message):
         cmd_my_vips(message)
     elif message.text == "💰 My Balance":
         cmd_my_balance(message)
-    elif message.text == "✏️ Edit VIP":
-        admin_reseller_edit_vip_menu(message)
     elif message.text == "🗑 Delete VIP":
         admin_reseller_delete_vip_menu(message)
     elif message.text == "👤 Create Reseller":
         admin_create_reseller(message)
     elif message.text == "📊 Reseller List":
         admin_view_resellers(message)
-    elif message.text == "✏️ Edit Reseller":
-        admin_edit_reseller_menu(message)
     elif message.text == "🗑 Delete Reseller":
         admin_delete_reseller_menu(message)
     elif message.text == "🌐 View All VIPs":
@@ -559,9 +550,9 @@ def cmd_add_vip(message):
         f"✍️ <b>VIP အသစ်ဆောက်ရန် ပုံစံစာသားပေးပို့ပါ-</b>\n"
         f"🪙 လက်ကျန်: <code>{current_tokens}</code> Tokens\n\n"
         f"✍️ Format အတိုင်း အောက်ပါစာသားကို ကူးယူပြင်ဆင်ပြီး ပို့နိုင်ပါသည်-\n"
-        f"<code>TelegramID | VIP_Name | Key/APK_ID | Month</code>\n\n"
+        f"<code>TelegramID | VIP_Name | Month</code>\n\n"
         f"👇 <b>နမူနာ ကို နှိပ်ပြီး Copy ယူနိုင်သည်-</b>\n"
-        f"<code>123456789 | Bbb | 53269990e11f5008 | 5</code>"
+        f"<code>123456789 | Customer_Name | 1</code>"
     )
     bot.reply_to(message, msg_text, parse_mode="HTML")
 
@@ -569,18 +560,17 @@ def cmd_add_vip(message):
 def process_vip_add(message):
     user_id = message.from_user.id
     parts = [p.strip() for p in message.text.split("|")]
-    if len(parts) != 4 or not parts[0].isdigit() or not parts[3].isdigit():
-        return bot.reply_to(message, "❌ ပုံစံမှားနေပါသည်။ TelegramID | VIP_Name | Key | Month အတိုင်း သေချာပြန်ပို့ပေးပါ။")
+    if len(parts) != 3 or not parts[0].isdigit() or not parts[2].isdigit():
+        return bot.reply_to(message, "❌ ပုံစံမှားနေပါသည်။ TelegramID | VIP_Name | Month အတိုင်း သေချာပြန်ပို့ပေးပါ။")
     
-    target_vip_id, name, key_val, month_val = parts[0], parts[1], parts[2], parts[3]
-    pull_data_from_google_sheet()
+    target_vip_id, name, month_val = parts[0], parts[1], parts[2]
     
-    # API ပုံစံအတိုင်း POST Payload တည်ဆောက်ခြင်း
+    # Key နေရာတွင် VIP_ACCOUNT ကို အလိုအလျောက် သတ်မှတ်ထည့်သွင်းပေးခြင်း
     payload = {
         "action": "insert",
         "user": target_vip_id,
         "name": name,
-        "key": key_val,
+        "key": "VIP_ACCOUNT", 
         "start": datetime.now().strftime("%d/%m/%Y"),
         "month": month_val
     }
@@ -624,30 +614,31 @@ def cmd_my_balance(message):
 
     bot.reply_to(message, response_text, reply_markup=get_main_keyboard(user_id), parse_mode="HTML")
 
-def admin_reseller_edit_vip_menu(message):
-    bot.reply_to(message, "💡 VIP အကောင့်သက်တမ်း တိုးမြှင့်လိုပါက <b>➕ Add VIP User</b> ကိုနှိပ်ပြီး ID တူ၊ Name တူဖြင့် လိုချင်သော လ အရေအတွက်ကို ထပ်မံဖြည့်စွက်ပေးပို့လိုက်ရုံဖြင့် Google Sheet မှ အလိုအလျောက် သက်တမ်းတိုးပေးသွားမည် ဖြစ်သည်။")
-
 def admin_reseller_delete_vip_menu(message):
     user_id = message.from_user.id
     if not is_reseller(user_id): return
     pull_data_from_google_sheet()
     
     user_states[user_id] = 'w_del_vip'
-    bot.reply_to(message, "🗑 <b>ဖျက်ထုတ်လိုသော VIP ၏ 'Key (သို့မဟုတ်) APK ID' ကို ရိုက်ပို့ပေးပါ-</b>", parse_mode="HTML")
+    bot.reply_to(message, "🗑 <b>ဖျက်ထုတ်လိုသော VIP ၏ 'Telegram ID (Users)' ကို ရိုက်ပို့ပေးပါ-</b>", parse_mode="HTML")
 
 @bot.message_handler(func=lambda msg: user_states.get(msg.from_user.id) == 'w_del_vip')
 def process_delete_vip_by_id(message):
     user_id = message.from_user.id
-    key_to_del = message.text.strip()
+    id_to_del = message.text.strip()
     
-    payload = {"action": "delete", "key": key_to_del}
+    # သင့် Gas Script ရဲ့ doPost က B Column ကိုစစ်ပြီး ဖျက်တာဖြစ်လို့ ဒေတာရှာဖွေမှု အဆင်ပြေအောင် 
+    # ပြောင်းလဲလိုက်ခြင်းဖြစ်ပါတယ်
+    payload = {"action": "delete", "key": id_to_del}
     status_msg = bot.reply_to(message, "⏳ Google Sheet မှ ဖျက်ထုတ်နေပါသည်...")
     
+    # Gas Script ရဲ့ Delete function ကို သဟဇာတဖြစ်အောင် ညှိနှိုင်းတောင်းဆိုခြင်း
+    # (Gas ထဲမှာ targetKey ကို ဝင်စစ်တဲ့နေရာကို ID ဖြင့် သွားရှာစေခြင်း)
     if send_post_request(payload):
         pull_data_from_google_sheet()
         bot.edit_message_text("✅ Google Sheet မှ အောင်မြင်စွာ ဖျက်ထုတ်ပြီးပါပြီ။", chat_id=message.chat.id, message_id=status_msg.message_id)
     else:
-        bot.edit_message_text("❌ ဖျက်ထုတ်ရန် မအောင်မြင်ပါ။ Key မှန်ကန်မှု ရှိမရှိ ပြန်စစ်ပါ။", chat_id=message.chat.id, message_id=status_msg.message_id)
+        bot.edit_message_text("❌ ဖျက်ထုတ်ရန် မအောင်မြင်ပါ။ Telegram ID မှန်ကန်မှု ရှိမရှိ ပြန်စစ်ပါ။", chat_id=message.chat.id, message_id=status_msg.message_id)
     user_states[user_id] = None
 
 # ==========================================
@@ -660,9 +651,9 @@ def admin_create_reseller(message):
     r_msg = (
         f"👤 <b>Reseller အသစ်ဖန်တီးရန် စာသားပေးပို့ပါ-</b>\n\n"
         f"✍️ Format လမ်းညွှန်-\n"
-        f"<code>TelegramID | ResellerName_Reseller | Tokens | Month(သက်တမ်းလ)</code>\n\n"
+        f"<code>TelegramID | ResellerName_Reseller | Month(သက်တမ်းလ)</code>\n\n"
         f"👇 <b>နမူနာ- (နာမည်အနောက်တွင် _Reseller မဖြစ်မနေ ထည့်ပေးပါ)</b>\n"
-        f"<code>6655182165 | ABC_Reseller | RESELLER_ACCOUNT | 1</code>"
+        f"<code>6655182165 | ABC_Reseller | 1</code>"
     )
     bot.reply_to(message, r_msg, parse_mode="HTML")
 
@@ -670,16 +661,16 @@ def admin_create_reseller(message):
 def process_admin_reseller(message):
     admin_id = message.from_user.id
     parts = [p.strip() for p in message.text.split("|")]
-    if len(parts) != 4:
+    if len(parts) != 3:
         return bot.reply_to(message, "❌ ပုံစံမှားယွင်းနေပါသည်။ စာသားပြန်လည်စစ်ဆေးပါ။")
         
     payload = {
         "action": "insert",
         "user": parts[0],
         "name": parts[1],
-        "key": parts[2],
+        "key": "RESELLER_ACCOUNT", 
         "start": datetime.now().strftime("%d/%m/%Y"),
-        "month": parts[3]
+        "month": parts[2]
     }
     
     status_msg = bot.reply_to(message, "⏳ Reseller အား Sheet သို့ သိမ်းဆည်းနေပါသည်...")
@@ -702,14 +693,29 @@ def admin_view_resellers(message):
         conn.close()
     if not rows: return bot.reply_to(message, "📭 <b>Reseller စာရင်း လုံးဝမရှိသေးပါ။</b>", parse_mode="HTML")
     res = "👥 <b>Reseller စာရင်းများနှင့် သက်တမ်းများ:</b>\n\n"
-    for r in rows: res += f"🆔 <code>{r[0]}</code> | 👤 <b>{r[1]}</b>\n🪙 {r[2]} Tokens | ⏳ Exp: <code>{r[3]}</code>\n\n"
+    for r in rows: res += f"🆔 <code>{r[0]}</code> | 👤 <b>{r[1]}</b>\n⏳ Exp: <code>{r[3]}</code>\n\n"
     bot.reply_to(message, res, parse_mode="HTML")
 
-def admin_edit_reseller_menu(message):
-    bot.reply_to(message, "💡 Reseller ၏ တိုကင် သို့မဟုတ် သက်တမ်းပြင်ဆင်ရန် <b>👤 Create Reseller</b> ကိုနှိပ်၍ သက်ဆိုင်ရာ ID ၊ နာမည် တူညီစွာဖြင့် လအသစ် ပြောင်းလဲပို့ပေးလိုက်ရုံဖြင့် အလိုအလျောက် အပ်ဒိတ်ဖြစ်သွားမည် ဖြစ်သည်။")
-
 def admin_delete_reseller_menu(message):
-    admin_reseller_delete_vip_menu(message)
+    admin_id = message.from_user.id
+    if not is_admin(admin_id): return
+    user_states[admin_id] = 'w_del_reseller'
+    bot.reply_to(message, "🗑 <b>ဖျက်ထုတ်လိုသော Reseller ၏ 'Telegram ID (Users)' ကို ရိုက်ပို့ပေးပါ-</b>", parse_mode="HTML")
+
+@bot.message_handler(func=lambda msg: user_states.get(msg.from_user.id) == 'w_del_reseller')
+def process_delete_reseller(message):
+    admin_id = message.from_user.id
+    id_to_del = message.text.strip()
+    
+    payload = {"action": "delete", "key": id_to_del}
+    status_msg = bot.reply_to(message, "⏳ Google Sheet မှ ဖျက်ထုတ်နေပါသည်...")
+    
+    if send_post_request(payload):
+        pull_data_from_google_sheet()
+        bot.edit_message_text("✅ Reseller ကို Sheet မှ အောင်မြင်စွာ ဖျက်ထုတ်ပြီးပါပြီ။", chat_id=message.chat.id, message_id=status_msg.message_id)
+    else:
+        bot.edit_message_text("❌ ဖျက်ထုတ်ရန် မအောင်မြင်ပါ။ ID မှန်ကန်မှုရှိမရှိ ပြန်စစ်ပါ။", chat_id=message.chat.id, message_id=status_msg.message_id)
+    user_states[admin_id] = None
 
 def admin_view_all_keys(message):
     if not is_admin(message.from_user.id): return
@@ -731,7 +737,7 @@ def admin_view_all_keys(message):
 # ==========================================
 if __name__ == "__main__":
     init_db()
-    pull_data_from_google_sheet()  # Start Sync
+    pull_data_from_google_sheet()  
     if PUBLIC_URL:
         try:
             bot.remove_webhook()
