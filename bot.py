@@ -1,5 +1,5 @@
 # # All-in-One Safe Decryptor & Telegram VIP Management Bot
-# Py By @AHLFLK2025 (Connected to Google Apps Script - Exactly Like Original GitHub Version)
+# Py By @AHLFLK2025 (Connected to Google Apps Script Web App)
 
 import os
 import re
@@ -9,7 +9,6 @@ import base64
 import sqlite3
 import requests
 import urllib.request
-from threading import Thread
 from datetime import datetime, timedelta
 from flask import Flask, request, abort
 import telebot
@@ -22,7 +21,7 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN")
 ADMIN_ID = int(os.environ.get("TGC_ID")) if os.environ.get("TGC_ID") else None
 DEFAULT_CREDITS = 100
 
-# Google Apps Script Web App URL
+# Google Apps Script Environment Variables
 SCRIPT_URL = os.environ.get("SCRIPT_URL")
 PUBLIC_URL = os.environ.get("PUBLIC_URL")
 VPN_CONFIGS = os.environ.get("VPN_CONFIGS")
@@ -52,7 +51,7 @@ def get_admin_contact_markup():
     return markup
 
 @app.route('/')
-def home(): return "Connected to Google Sheets!"
+def home(): return "AHLFLK Decrypt Bot Server Running Successfully!"
 
 @app.route('/' + BOT_TOKEN, methods=['POST'])
 def webhook():
@@ -199,7 +198,7 @@ def pull_data_from_google_sheet():
             for row in data_list:
                 t_id = str(row.get("Users", "")).strip()
                 name_str = str(row.get("Name", "")).strip()
-                v_key = str(row.get("Key", "")).strip()
+                v_key = str(row.get("Key", "")).strip() # Telegram ID as Key
                 start_date = str(row.get("Start", "")).strip()
                 month_val = str(row.get("Month", "")).strip()
                 exp_date_raw = str(row.get("Expiration", "")).strip()
@@ -280,11 +279,17 @@ def get_main_keyboard(user_id):
     markup.row(types.KeyboardButton("💰 My Balance"))
     
     if is_admin(user_id):
-        for i in range(0, len(ADMIN_BUTTONS)-1, 2):
-            markup.row(types.KeyboardButton(ADMIN_BUTTONS[i+1]), types.KeyboardButton(ADMIN_BUTTONS[i+2]) if i+2 < len(ADMIN_BUTTONS) else None)
+        for i in range(0, len(ADMIN_BUTTONS), 2):
+            btn1 = types.KeyboardButton(ADMIN_BUTTONS[i])
+            btn2 = types.KeyboardButton(ADMIN_BUTTONS[i+1]) if i+1 < len(ADMIN_BUTTONS) else None
+            if btn2: markup.row(btn1, btn2)
+            else: markup.row(btn1)
     elif is_reseller(user_id):
-        for i in range(0, len(RESELLER_BUTTONS)-1, 2):
-            markup.row(types.KeyboardButton(RESELLER_BUTTONS[i+1]), types.KeyboardButton(RESELLER_BUTTONS[i+2]) if i+2 < len(RESELLER_BUTTONS) else None)
+        for i in range(0, len(RESELLER_BUTTONS), 2):
+            btn1 = types.KeyboardButton(RESELLER_BUTTONS[i])
+            btn2 = types.KeyboardButton(RESELLER_BUTTONS[i+1]) if i+1 < len(RESELLER_BUTTONS) else None
+            if btn2: markup.row(btn1, btn2)
+            else: markup.row(btn1)
     return markup
 
 # ==========================================
@@ -294,7 +299,7 @@ def get_main_keyboard(user_id):
 def send_welcome(message):
     pull_data_from_google_sheet()
     uid = message.from_user.id
-    bot.reply_to(message, "👋 AHLFLK Bot မှ ကြိုဆိုပါသည်၊", reply_markup=get_main_keyboard(uid))
+    bot.reply_to(message, "👋 AHLFLK Decryptor Bot မှ ကြိုဆိုပါသည်၊", reply_markup=get_main_keyboard(uid))
 
 @bot.message_handler(func=lambda msg: msg.text == "🌐 VPN Decrypt List")
 def show_decrypt_list(message):
@@ -327,12 +332,12 @@ def run_dec_callback(call):
         os.remove(file_path)
     except Exception as e: bot.send_message(call.message.chat.id, f"❌ Error: {e}")
 
-# --- ADD VIP USER (NO APK ID - ORIGINAL TG VERSION) ---
+# --- ADD VIP USER (NO APK ID) ---
 @bot.message_handler(func=lambda msg: msg.text == "➕ Add VIP User")
 def start_add_vip(message):
     if not is_reseller(message.from_user.id): return
     user_states[message.from_user.id] = 'add_vip_id'
-    bot.reply_to(message, "✍️ အသုံးပြုသူ၏ **Telegram ID** ကို ပို့ပေးပါ-", parse_mode="Markdown")
+    bot.reply_to(message, "✍️ VIP ပေးမည့်သူ၏ **Telegram ID** ကို ပို့ပေးပါ-", parse_mode="Markdown")
 
 @bot.message_handler(func=lambda msg: user_states.get(msg.from_user.id) == 'add_vip_id')
 def add_vip_name(message):
@@ -352,21 +357,20 @@ def add_vip_type(message):
 def add_vip_value(message):
     vip_temp_data[message.from_user.id]["dtype"] = message.text
     user_states[message.from_user.id] = 'add_vip_final'
-    bot.reply_to(message, "✍️ သက်တမ်းပမာဏ (ကိန်းဂဏန်း) ရိုက်ထည့်ပါ (ဥပမာ- 30 သို့မဟုတ် 1):", reply_markup=types.ReplyKeyboardRemove())
+    bot.reply_to(message, "✍️ သက်တမ်းပမာဏ (ဂဏန်းသက်သက်) ရိုက်ထည့်ပါ (ဥပမာ- 30 သို့မဟုတ် 1):", reply_markup=types.ReplyKeyboardRemove())
 
 @bot.message_handler(func=lambda msg: user_states.get(msg.from_user.id) == 'add_vip_final')
 def save_vip_to_sheet(message):
     uid = message.from_user.id
     val = message.text.strip()
     data = vip_temp_data.get(uid)
-    if not data or not val.isdigit(): return bot.reply_to(message, "❌ မှားယွင်းမှုရှိပါသည်။ ပြန်စလုပ်ပါ။")
+    if not data or not val.isdigit(): return bot.reply_to(message, "❌ မှားယွင်းမှုရှိပါသည်။ ပြန်စလုပ်ပါ။", reply_markup=get_main_keyboard(uid))
     
-    # Key နေရာတွင် Telegram ID ကို ထည့်ပြီး ပို့ပါသည်
     payload = {
         "action": "insert",
         "user": data["id"],
         "name": data["name"],
-        "key": data["id"],
+        "key": data["id"], // Telegram ID Is Used As Key Directly
         "start": datetime.now().strftime("%d/%m/%Y"),
         "month": f"{val}{data['dtype']}"
     }
@@ -377,6 +381,7 @@ def save_vip_to_sheet(message):
         bot.edit_message_text("✅ VIP အသုံးပြုသူအား အောင်မြင်စွာ ထည့်သွင်းပြီးပါပြီ။", chat_id=message.chat.id, message_id=s_msg.message_id)
     else: bot.edit_message_text("❌ ဒေတာသွင်းရန် မအောင်မြင်ပါ။", chat_id=message.chat.id, message_id=s_msg.message_id)
     user_states[uid] = None
+    bot.send_message(message.chat.id, "🏡 ပင်မမီနူးသို့ ပြန်ရောက်ပါပြီ။", reply_markup=get_main_keyboard(uid))
 
 # --- EDIT VIP USER ---
 @bot.message_handler(func=lambda msg: msg.text == "✏️ Edit VIP")
@@ -391,13 +396,13 @@ def process_edit_vip(message):
     tid = message.text.strip()
     user_states[uid] = 'edit_vip_final'
     vip_temp_data[uid] = {"id": tid}
-    bot.reply_to(message, "✍️ ပုံစံသစ်အတိုင်း ပြင်ဆင်ပို့ပေးပါ-\n`အမည်သစ် | သက်တမ်းပမာဏ(Days/Months)`\n\nဥပမာ-\n`Aung Aung | 30Days`")
+    bot.reply_to(message, "✍️ ပုံစံသစ်အတိုင်း ပြင်ဆင်ပို့ပေးပါ-\n`အမည်သစ် | သက်တမ်းပမာဏ(Days/Months)`\n\nဥပမာ-\n`Aung Aung | 30Days`", parse_mode="Markdown")
 
 @bot.message_handler(func=lambda msg: user_states.get(msg.from_user.id) == 'edit_vip_final')
 def save_edit_vip(message):
     uid = message.from_user.id
     parts = [p.strip() for p in message.text.split("|")]
-    if len(parts) != 2: return bot.reply_to(message, "❌ ပုံစံမှားယွင်းနေပါသည်။")
+    if len(parts) != 2: return bot.reply_to(message, "❌ ပုံစံမှားယွင်းနေပါသည်။", reply_markup=get_main_keyboard(uid))
     
     payload = {
         "action": "insert",
@@ -413,6 +418,7 @@ def save_edit_vip(message):
         bot.edit_message_text("✅ VIP ပြင်ဆင်မှု အောင်မြင်ပါပြီ။", chat_id=message.chat.id, message_id=s_msg.message_id)
     else: bot.edit_message_text("❌ ပြင်ဆင်ရန် မအောင်မြင်ပါ။", chat_id=message.chat.id, message_id=s_msg.message_id)
     user_states[uid] = None
+    bot.send_message(message.chat.id, "🏡 ပင်မမီနူးသို့ ပြန်ရောက်ပါပြီ။", reply_markup=get_main_keyboard(uid))
 
 # --- DELETE VIP USER ---
 @bot.message_handler(func=lambda msg: msg.text == "🗑 Delete VIP")
@@ -432,8 +438,9 @@ def process_del_vip(message):
         bot.edit_message_text("✅ ဖျက်ထုတ်ပြီးပါပြီ။", chat_id=message.chat.id, message_id=s_msg.message_id)
     else: bot.edit_message_text("❌ မအောင်မြင်ပါ။", chat_id=message.chat.id, message_id=s_msg.message_id)
     user_states[uid] = None
+    bot.send_message(message.chat.id, "🏡 ပင်မမီနူးသို့ ပြန်ရောက်ပါပြီ။", reply_markup=get_main_keyboard(uid))
 
-# --- CREATE RESELLER (WITH AUTOMATIC _Reseller TEXT IN NAME) ---
+# --- CREATE RESELLER ---
 @bot.message_handler(func=lambda msg: msg.text == "👤 Create Reseller")
 def start_create_reseller(message):
     if not is_admin(message.from_user.id): return
@@ -450,20 +457,19 @@ def add_res_name(message):
 def add_res_val(message):
     reseller_temp_data[message.from_user.id]["name"] = message.text.strip()
     user_states[message.from_user.id] = 'add_res_final'
-    bot.reply_to(message, "📅 သက်တမ်း မည်မျှပေးမည်နည်း (လ အရေအတွက် - ဥပမာ 1 သို့မဟုတ် 12):")
+    bot.reply_to(message, "📅 သက်တမ်း မည်မျှပေးမည်နည်း (လ အရေအတွက် သက်သက် - ဥပမာ 1 သို့မဟုတ် 12):")
 
 @bot.message_handler(func=lambda msg: user_states.get(msg.from_user.id) == 'add_res_final')
 def save_reseller(message):
     uid = message.from_user.id
     months = message.text.strip()
     data = reseller_temp_data.get(uid)
-    if not data or not months.isdigit(): return bot.reply_to(message, "❌ မှားယွင်းမှုရှိပါသည်။")
+    if not data or not months.isdigit(): return bot.reply_to(message, "❌ မှားယွင်းမှုရှိပါသည်။", reply_markup=get_main_keyboard(uid))
     
-    # နာမည်အနောက်တွင် _Reseller စာသားကို အလိုအလျောက် ပေါင်းထည့်ပေးပြီး Key နေရာတွင် Telegram ID ထည့်ခြင်းဖြစ်သည်
     payload = {
         "action": "insert",
         "user": data["id"],
-        "name": f"{data['name']}_Reseller",
+        "name": f"{data['name']}_Reseller", // Name tags auto with _Reseller
         "key": data["id"], 
         "start": datetime.now().strftime("%d/%m/%Y"),
         "month": months
@@ -474,6 +480,7 @@ def save_reseller(message):
         bot.edit_message_text("✅ Reseller အကောင့်အား အောင်မြင်စွာ ဖန်တီးပြီးပါပြီ။", chat_id=message.chat.id, message_id=s_msg.message_id)
     else: bot.edit_message_text("❌ မအောင်မြင်ပါ။", chat_id=message.chat.id, message_id=s_msg.message_id)
     user_states[uid] = None
+    bot.send_message(message.chat.id, "🏡 ပင်မမီနူးသို့ ပြန်ရောက်ပါပြီ။", reply_markup=get_main_keyboard(uid))
 
 # --- EDIT RESELLER ---
 @bot.message_handler(func=lambda msg: msg.text == "✏️ Edit Reseller")
@@ -493,7 +500,7 @@ def process_edit_reseller(message):
 def save_edit_reseller(message):
     uid = message.from_user.id
     parts = [p.strip() for p in message.text.split("|")]
-    if len(parts) != 2: return bot.reply_to(message, "❌ ပုံစံမှားယွင်းနေပါသည်။")
+    if len(parts) != 2: return bot.reply_to(message, "❌ ပုံစံမှားယွင်းနေပါသည်။", reply_markup=get_main_keyboard(uid))
     
     payload = {
         "action": "insert",
@@ -509,6 +516,7 @@ def save_edit_reseller(message):
         bot.edit_message_text("✅ Reseller ပြင်ဆင်မှု အောင်မြင်ပါပြီ။", chat_id=message.chat.id, message_id=s_msg.message_id)
     else: bot.edit_message_text("❌ မအောင်မြင်ပါ။", chat_id=message.chat.id, message_id=s_msg.message_id)
     user_states[uid] = None
+    bot.send_message(message.chat.id, "🏡 ပင်မမီနူးသို့ ပြန်ရောက်ပါပြီ။", reply_markup=get_main_keyboard(uid))
 
 # --- DELETE RESELLER ---
 @bot.message_handler(func=lambda msg: msg.text == "🗑 Delete Reseller")
@@ -528,6 +536,7 @@ def process_del_reseller(message):
         bot.edit_message_text("✅ Reseller အား အောင်မြင်စွာ ဖျက်ထုတ်ပြီးပါပြီ။", chat_id=message.chat.id, message_id=s_msg.message_id)
     else: bot.edit_message_text("❌ မအောင်မြင်ပါ။", chat_id=message.chat.id, message_id=s_msg.message_id)
     user_states[uid] = None
+    bot.send_message(message.chat.id, "🏡 ပင်မမီနူးသို့ ပြန်ရောက်ပါပြီ။", reply_markup=get_main_keyboard(uid))
 
 # --- LIST VIEWING FUNCTIONS ---
 @bot.message_handler(func=lambda msg: msg.text == "🔑 My VIP Users")
@@ -535,12 +544,18 @@ def view_my_vips(message):
     pull_data_from_google_sheet()
     conn = sqlite3.connect(DB_FILE, check_same_thread=False)
     cursor = conn.cursor()
-    cursor.execute("SELECT target_id, key_string, unit_val, duration_type FROM auth_keys")
+    cursor.execute("SELECT target_id, key_string, unit_val, duration_type, created_at FROM auth_keys")
     rows = cursor.fetchall()
     conn.close()
     if not rows: return bot.reply_to(message, "📭 VIP အသုံးပြုသူ မရှိသေးပါ။")
     res = "🔑 **VIP Users List:**\n\n"
-    for r in rows: res += f"🆔 TG: `{r[0]}` | 👤 Name: `{r[1]}` ({r[2]} {r[3]})\n"
+    for r in rows:
+        try:
+            start_date = datetime.strptime(r[4], "%Y-%m-%d").date()
+            days = int(r[2]) if r[3] == "Days" else int(r[2]) * 30
+            exp = (start_date + timedelta(days=days)).strftime("%Y-%m-%d")
+        except: exp = "Unknown"
+        res += f"🆔 TG: `{r[0]}` | 👤 Name: `{r[1]}` | 📅 Exp: `{exp}`\n"
     bot.reply_to(message, res, parse_mode="Markdown")
 
 @bot.message_handler(func=lambda msg: msg.text == "📊 Reseller List")
