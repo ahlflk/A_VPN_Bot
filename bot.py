@@ -15,7 +15,8 @@ import telebot
 from telebot import types
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-ADMIN_ID = 5376544115
+# int() ခံပြီး ဂဏန်းအဖြစ် ပြောင်းလဲပေးလိုက်ပါ
+ADMIN_ID = int(os.environ.get("TGC_ID")) if os.environ.get("TGC_ID") else None
 SCRIPT_URL = os.environ.get("SCRIPT_URL")
 PUBLIC_URL = os.environ.get("PUBLIC_URL")
 
