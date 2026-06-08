@@ -469,7 +469,7 @@ def save_reseller(message):
     payload = {
         "action": "insert",
         "user": data["id"],
-        "name": f"{data['name']}_Reseller", // Name tags auto with _Reseller
+        "name": f"{data['name']}_Reseller",
         "key": data["id"], 
         "start": datetime.now().strftime("%d/%m/%Y"),
         "month": months
