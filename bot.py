@@ -197,7 +197,7 @@ def pull_data_from_google_sheet():
             for row in data_list:
                 t_id = str(row.get("Users", "")).strip()
                 name_str = str(row.get("Name", "")).strip()
-                v_key = str(row.get("Key", "")).strip() 
+                v_key = str(row.get("Key", "")).strip()
                 start_date = str(row.get("Start", "")).strip()
                 month_val = str(row.get("Month", "")).strip()
                 exp_date_raw = str(row.get("Expiration", "")).strip()
@@ -207,7 +207,6 @@ def pull_data_from_google_sheet():
                 parsed_exp = parse_sheet_date(exp_date_raw)
                 
                 if "_Reseller" in name_str:
-                    # Column E (Month) ကို token_balance အဖြစ် သိမ်းဆည်းခြင်း
                     cursor.execute("""
                         INSERT OR REPLACE INTO users (tg_id, username, role, token_balance, expire_date)
                         VALUES (?, ?, 'reseller', ?, ?)
@@ -266,7 +265,6 @@ def check_reseller_status(user_id):
 def check_vip_status(user_id):
     if user_id == ADMIN_ID: return True, "Unlimited (Admin)"
     
-    # Reseller ဖြစ်နေလျှင် ၎င်း၏ သက်တမ်းကို အရင်စစ်မည်
     conn = sqlite3.connect(DB_FILE, check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute("SELECT role, expire_date FROM users WHERE tg_id = ?", (user_id,))
@@ -277,7 +275,6 @@ def check_vip_status(user_id):
             return False, "Expired Reseller"
         return True, f"Reseller ({u_row[1]})"
 
-    # VIP အသုံးပြုသူဖြစ်လျှင် စစ်မည်
     cursor.execute("SELECT unit_val, created_at FROM auth_keys WHERE target_id = ?", (str(user_id),))
     row = cursor.fetchone()
     conn.close()
@@ -286,7 +283,6 @@ def check_vip_status(user_id):
     val, start_str = row
     try:
         start_date = datetime.strptime(start_str, "%Y-%m-%d").date()
-        # Sheet ထဲက Formula အလုပ်လုပ်ပုံအတိုင်း လအလိုက် ရက်ပေါင်း ၃၀ စီ တွက်ချက်ခြင်း
         days_to_add = int(val) * 30
         expire_date = start_date + timedelta(days=days_to_add)
         if datetime.now().date() <= expire_date:
@@ -358,7 +354,7 @@ def run_dec_callback(call):
         os.remove(file_path)
     except Exception as e: bot.send_message(call.message.chat.id, f"❌ Error: {e}")
 
-# --- ADD VIP USER (MONTH ONLY) ---
+# --- ADD VIP USER (DAYS LOGIC REMOVED) ---
 @bot.message_handler(func=lambda msg: msg.text == "➕ Add VIP User")
 def start_add_vip(message):
     uid = message.from_user.id
@@ -389,7 +385,6 @@ def save_vip_to_sheet(message):
     if not data or not val.isdigit(): 
         return bot.reply_to(message, "❌ မှားယွင်းမှုရှိပါသည်။ ပြန်စလုပ်ပါ။", reply_markup=get_main_keyboard(uid))
     
-    # GAS sync engine ရဲ့ variables တွေနဲ့ တိုက်ရိုက်ကိုက်ညီအောင် ညှိပေးခြင်း
     payload = {
         "action": "sync",
         "users": data["id"],
@@ -409,7 +404,7 @@ def save_vip_to_sheet(message):
     user_states[uid] = None
     bot.send_message(message.chat.id, "🏡 ပင်မမီနူးသို့ ပြန်ရောက်ပါပြီ။", reply_markup=get_main_keyboard(uid))
 
-# --- EDIT VIP USER ---
+# --- EDIT VIP USER (DAYS LOGIC REMOVED) ---
 @bot.message_handler(func=lambda msg: msg.text == "✏️ Edit VIP")
 def start_edit_vip(message):
     uid = message.from_user.id
@@ -460,7 +455,7 @@ def start_del_vip(message):
     user_states[message.from_user.id] = 'del_vip_id'
     bot.reply_to(message, "🗑 ဖျက်ထုတ်လိုသော VIP ၏ **Telegram ID** ကို ရိုက်ပို့ပေးပါ-")
 
-@bot.message_handler(func=lambda msg: user_states.get(msg.from_user.id) == 'del_vip_id')
+@bot.message_handler(func=lambda msg: user_states.get(message.from_user.id) == 'del_vip_id')
 def process_del_vip(message):
     uid = message.from_user.id
     key_id = message.text.strip()
@@ -474,14 +469,14 @@ def process_del_vip(message):
     user_states[uid] = None
     bot.send_message(message.chat.id, "🏡 ပင်မမီနူးသို့ ပြန်ရောက်ပါပြီ။", reply_markup=get_main_keyboard(uid))
 
-# --- CREATE RESELLER (TOKEN & MONTH ENGINE) ---
+# --- CREATE RESELLER ---
 @bot.message_handler(func=lambda msg: msg.text == "👤 Create Reseller")
 def start_create_reseller(message):
     if not is_admin(message.from_user.id): return
     user_states[message.from_user.id] = 'add_res_id'
     bot.reply_to(message, "👤 ဖန်တီးမည့် Reseller ၏ **Telegram ID** ကို ပို့ပေးပါ-")
 
-@bot.message_handler(func=lambda msg: user_states.get(msg.from_user.id) == 'add_res_id')
+@bot.message_handler(func=lambda msg: user_states.get(message.from_user.id) == 'add_res_id')
 def add_res_name(message):
     reseller_temp_data[message.from_user.id] = {"id": message.text.strip()}
     user_states[message.from_user.id] = 'add_res_name'
@@ -491,7 +486,7 @@ def add_res_name(message):
 def add_res_val(message):
     reseller_temp_data[message.from_user.id]["name"] = message.text.strip()
     user_states[message.from_user.id] = 'add_res_final'
-    bot.reply_to(message, "📅 သက်တမ်း မည်မျှပေးမည်နည်း (လ အရေအတွက် သက်သက် / ၎င်းပမာဏသည်ပင် Token ဖြစ်သွားပါမည် - ဥပမာ 5 သို့မဟုတ် 10):")
+    bot.reply_to(message, "📅 သက်တမ်း မည်မျှပေးမည်နည်း (လ အရေအတွက် သက်သက် - ဥပမာ 5 သို့မဟုတ် 10):")
 
 @bot.message_handler(func=lambda msg: user_states.get(msg.from_user.id) == 'add_res_final')
 def save_reseller(message):
@@ -501,7 +496,6 @@ def save_reseller(message):
     if not data or not months.isdigit(): 
         return bot.reply_to(message, "❌ မှားယွင်းမှုရှိပါသည်။", reply_markup=get_main_keyboard(uid))
     
-    # GAS ရဲ့ sync_reseller engine နဲ့ အတိအကျချိတ်ဆက်ခြင်း
     payload = {
         "action": "sync_reseller",
         "users": data["id"],
@@ -529,7 +523,7 @@ def process_edit_reseller(message):
     uid = message.from_user.id
     user_states[uid] = 'edit_res_final'
     reseller_temp_data[uid] = {"id": message.text.strip()}
-    bot.reply_to(message, "✍️ ပုံစံသစ်အတိုင်း ပြန်ပို့ပေးပါ-\n`အမည်သစ် | သက်တမ်းတိုးမည့်(လ/Token)`")
+    bot.reply_to(message, "✍️ ပုံစံသစ်အတိုင်း ပြန်ပို့ပေးပါ-\n`အမည်သစ် | သက်တမ်းတိုးမည့်(လ)`")
 
 @bot.message_handler(func=lambda msg: user_states.get(msg.from_user.id) == 'edit_res_final')
 def save_edit_reseller(message):
@@ -568,7 +562,7 @@ def process_del_reseller(message):
     s_msg = bot.reply_to(message, "⏳ Sheet မှ ဖျက်ထုတ်နေပါသည်...")
     if send_post_request(payload):
         pull_data_from_google_sheet()
-        bot.edit_message_text("✅ Reseller အား အောင်မြင်စွာ ဖန်တီးပြီးပါပြီ။", chat_id=message.chat.id, message_id=s_msg.message_id)
+        bot.edit_message_text("✅ Reseller အား အောင်မြင်စွာ ဖြုတ်ချပြီးပါပြီ။", chat_id=message.chat.id, message_id=s_msg.message_id)
     else: 
         bot.edit_message_text("❌ မအောင်မြင်ပါ။", chat_id=message.chat.id, message_id=s_msg.message_id)
     user_states[uid] = None
@@ -592,7 +586,6 @@ def view_my_vips(message):
             exp = (start_date + timedelta(days=days)).strftime("%Y-%m-%d")
         except: 
             exp = "Unknown"
-         # Column C (Key) ကို VPN APK ID အစား TG ID အဖြစ်ပဲ ပြသပါမည်
         res += f"🆔 TG: `{r[0]}` | 👤 Name: `{r[1]}` | 📅 Exp: `{exp}`\n"
     bot.reply_to(message, res, parse_mode="Markdown")
 
@@ -628,7 +621,7 @@ def view_balance(message):
         res = f"💰 **Reseller Account Information:**\n\n🆔 Telegram ID: `{uid}`\n🪙 Token Balance: `{tokens}`\n📅 Expiration: `{exp}`"
     else:
         is_vip, exp = check_vip_status(uid)
-        res = f"💰 **User Account Information:**\n\n🆔 Telegram ID: `{uid}`\n📊 Status: `{'Active VIP' if is_vip else 'Inactive'}`\n📅 Expiration: `{exp}`"
+        res = f"💰 **User Account Information:**\n\n🆔 Telegram ID: `{uid}`\n📊 Status: `{"Active VIP" if is_vip else "Inactive"}`\n📅 Expiration: `{exp}`"
         
     bot.reply_to(message, res, reply_markup=get_main_keyboard(uid), parse_mode="Markdown")
 
