@@ -270,7 +270,7 @@ def send_welcome(message):
                    f"🆔 Telegram ID: <code>{user_id}</code>\n" \
                    f"{tokens_line}" \
                    f"🔑 Last VPN Key: <code>{vpn_key}</code>\n" \
-                   f"⏳ သက်တမ်းကုန်မည့်ရက်: <code>{exp_status}</code>\n\n" \
+                   f"⏳ VPN သက်တမ်းကုန်မည့်ရက်: <code>{exp_status}</code>\n\n" \
                    f"အောက်ပါ Panel Keyboard ကို အသုံးပြုပြီး ထိန်းချုပ်နိုင်ပါသည်။"
                    
     bot.reply_to(message, welcome_text, reply_markup=get_main_keyboard(user_id), parse_mode="HTML")
@@ -291,7 +291,7 @@ def handle_menu_clicks(message):
                          f"👤 အမည်: <b>{first_name}</b>\n" \
                          f"🆔 Telegram ID: <code>{user_id}</code>\n" \
                          f"🔑 Last VPN Key: <code>{vpn_key}</code>\n" \
-                         f"⏳ သက်တမ်းကုန်မည့်ရက်: <code>{exp_status}</code>"
+                         f"⏳ VPN သက်တမ်းကုန်မည့်ရက်: <code>{exp_status}</code>"
             bot.reply_to(message, admin_text, parse_mode="HTML")
             
         elif is_reseller(user_id):
@@ -302,7 +302,7 @@ def handle_menu_clicks(message):
                             f"🆔 Telegram ID: <code>{user_id}</code>\n" \
                             f"🪙 Credit Balance: <code>{tokens}</code> Tokens\n" \
                             f"🔑 Last VPN Key: <code>{vpn_key}</code>\n" \
-                            f"⏳ သက်တမ်းကုန်မည့်ရက်: <code>{exp_status}</code>"
+                            f"⏳ VPN သက်တမ်းကုန်မည့်ရက်: <code>{exp_status}</code>"
             
             if tokens <= 0:
                 reseller_text += "\n\n🚫 <b>သင့်ရဲ့ Reseller Token ကုန်ဆုံးသွားပါပြီဗျာ။</b>\n\nလုပ်ဆောင်ချက်များကို ဆက်လက်အသုံးပြုနိုင်ရန်အတွက် ကျေးဇူးပြု၍ Admin ထံသို့ ဆက်သွယ်ပြီး Token ဖြည့်တင်းပေးပါရန်।"
@@ -316,7 +316,7 @@ def handle_menu_clicks(message):
                         f"👤 အမည်: <b>{first_name}</b>\n" \
                         f"🆔 Telegram ID: <code>{user_id}</code>\n" \
                         f"🔑 Last VPN Key: <code>{vpn_key}</code>\n" \
-                        f"⏳ သက်တမ်းကုန်မည့်ရက်: <code>{exp_status}</code>"
+                        f"⏳ VPN သက်တမ်းကုန်မည့်ရက်: <code>{exp_status}</code>"
             
             if is_expired or not is_vip:
                 user_text += "\n\n⚠️ <b>သင့်ရဲ့ VPN VIP အကောင့် သက်တမ်းကုန်ဆုံးသွားပါပြီ။</b>\n\nသက်တမ်း ဆက်တိုးလိုပါက သို့မဟုတ် အကောင့်အသစ်ဝယ်ယူလိုပါက အောက်ပါ Admin ထံသို့ တိုက်ရိုက်ဆက်သွယ်နိုင်ပါသည်ဗျာ।"
