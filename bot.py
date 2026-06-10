@@ -1,5 +1,5 @@
 # # All-in-One (VPN_APK) Telegram VIP Management Bot
-# Fixed Token Engine System
+# Py By @AHLFLK2025
 
 # ==========================================
 # 1. CONFIGURATION & CORE BOT SETUP
@@ -108,8 +108,7 @@ def pull_data_from_google_sheet():
                     else: continue
                 
                 t_id = str(t_id).strip()
-                
-                # Reseller ဖြစ်ပါက တိုကင်ကို Key ကော်လံ (key_apk) ထဲမှ ဆွဲထုတ်မည်
+
                 if "_Reseller" in str(k_str):
                     try:
                         clean_name = str(k_str).replace("_Reseller", "").strip()
@@ -442,7 +441,19 @@ def handle_fluid_inputs(message):
             conn.close()
             
             pull_data_from_google_sheet()
-            bot.send_message(user_id, f"✅ <b>VPN APK VIP အား အောင်မြင်စွာ စာရင်းသွင်းပြီးပါပြီ။</b>\n\n🔑 APK Key: <code>{key}</code>\n📊 Sheets နှင့် Token Balance ထဲမှ ({month} Tokens) နှုတ်ယူပြီးပါပြီ။", parse_mode="HTML")
+
+            success_text = f"✅ <b>VPN APK VIP အား အောင်မြင်စွာ စာရင်းသွင်းပြီးပါပြီ။</b>\n\n" \
+                           f"🔑 APK Key: <code>{key}</code>\n"
+            
+            if is_reseller(user_id):
+                updated_tokens = get_reseller_tokens(user_id)
+                success_text += f"📊 Sheets နှင့် Token Balance ထဲမှ ({month} Tokens) နှုတ်ယူပြီးပါပြီ။\n" \
+                                f"🪙 သင့်လက်ရှိ Token <b>{updated_tokens} Tokens</b> ဖြစ်ပါသည်။"
+            else:
+                success_text += f"📊 Sheets ထဲသို့ VIP ဒေတာများ ထည့်သွင်းပြီးပါပြီ။"
+            
+            bot.send_message(user_id, success_text, parse_mode="HTML")
+            
         else:
             bot.send_message(user_id, "❌ Sheet သို့ ဒေတာပေးပို့ခြင်း မအောင်မြင်ပါ။", parse_mode="HTML")
         user_states[user_id] = None
@@ -606,4 +617,3 @@ if __name__ == "__main__":
         app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
     else:
         bot.infinity_polling()
-
