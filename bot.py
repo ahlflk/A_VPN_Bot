@@ -406,8 +406,8 @@ def handle_fluid_inputs(message):
             current_tokens = get_reseller_tokens(user_id)
             if current_tokens < month:
                 user_states[user_id] = None
-                insufficient_text = f"🚫 <b>သင့်တွင် Token မလုံလောက်ပါ။</b>\n" \
-                                    f"🪙 သင့်တွင် <b>{current_tokens} Token</b> ပဲ ရှိပါသည်။\n\n" \
+                insufficient_text = f"🚫 သင့်တွင် <b>Tokens</b> မလုံလောက်တော့ပါ။\n" \
+                                    f"🪙 သင့်တွင် <b>({current_tokens} Tokens)</b> ပဲ ရှိပါသည်။\n\n" \
                                     f"လုပ်ဆောင်ချက် ဆက်လက်ပြုလုပ်ရန် (သို့မဟုတ်) တိုကင်ထည့်သွင်းရန် Admin ကို ဆက်သွယ်ပေးပါရန်।"
                 return bot.reply_to(message, insufficient_text, reply_markup=get_admin_contact_markup(), parse_mode="HTML")
 
@@ -448,8 +448,8 @@ def handle_fluid_inputs(message):
             
             if is_reseller(user_id):
                 updated_tokens = get_reseller_tokens(user_id)
-                success_text += f"📊 Sheets နှင့် Token Balance ထဲမှ ({month} Tokens) နှုတ်ယူပြီးပါပြီ။\n" \
-                                f"🪙 သင့်လက်ရှိ Token <b>{updated_tokens} Tokens</b> ဖြစ်ပါသည်။"
+                success_text += f"📊 Sheets နှင့် Token Balance ထဲမှ <b>({month} Tokens)</b> နှုတ်ယူပြီးပါပြီ။\n" \
+                                f"🪙 သင့်လက်ရှိ Token <b>({updated_tokens} Tokens)</b> ဖြစ်ပါသည်။"
             else:
                 success_text += f"📊 Sheets ထဲသို့ VIP ဒေတာများ ထည့်သွင်းပြီးပါပြီ။"
             
