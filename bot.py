@@ -291,7 +291,7 @@ def handle_menu_clicks(message):
                          f"👤 အမည်: <b>{first_name}</b>\n" \
                          f"🆔 Telegram ID: <code>{user_id}</code>\n" \
                          f"🔑 Last VPN Key: <code>{vpn_key}</code>\n" \
-                         f"⏳ သက်တမ်းကုန်မည့်ရက်: <code>Life_Time</code>"
+                         f"⏳ သက်တမ်းကုန်မည့်ရက်: <code>{exp_status}</code>"
             bot.reply_to(message, admin_text, parse_mode="HTML")
             
         elif is_reseller(user_id):
@@ -301,7 +301,8 @@ def handle_menu_clicks(message):
                             f"👤 အမည်: <b>{first_name}</b>\n" \
                             f"🆔 Telegram ID: <code>{user_id}</code>\n" \
                             f"🪙 Credit Balance: <code>{tokens}</code> Tokens\n" \
-                            f"🔑 Last VPN Key: <code>{vpn_key}</code>"
+                            f"🔑 Last VPN Key: <code>{vpn_key}</code>\n" \
+                            f"⏳ သက်တမ်းကုန်မည့်ရက်: <code>{exp_status}</code>"
             
             if tokens <= 0:
                 reseller_text += "\n\n🚫 <b>သင့်ရဲ့ Reseller Token ကုန်ဆုံးသွားပါပြီဗျာ။</b>\n\nလုပ်ဆောင်ချက်များကို ဆက်လက်အသုံးပြုနိုင်ရန်အတွက် ကျေးဇူးပြု၍ Admin ထံသို့ ဆက်သွယ်ပြီး Token ဖြည့်တင်းပေးပါရန်।"
