@@ -12,15 +12,14 @@ from flask import Flask, request, abort
 import telebot
 from telebot import types
 
-# ==========================================\n# 1. CONFIGURATION & CORE BOT SETUP\n# ==========================================
+# =========================================
+# 1. CONFIGURATION & CORE BOT SETUP
+# =========================================
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 ADMIN_ID = int(os.environ.get("TGC_ID")) if os.environ.get("TGC_ID") else None
 
-# Google Apps Script Web App URL (အစ်ကို့ Sheet API URL)
 SCRIPT_URL = os.environ.get("SCRIPT_URL") 
 PUBLIC_URL = os.environ.get("PUBLIC_URL")
-
-# Render ထဲက Env Variable ကနေ ဆွဲယူမည့် VPN CONFIGS JSON
 VPN_CONFIGS = os.environ.get("VPN_CONFIGS")
 
 bot = telebot.TeleBot(BOT_TOKEN, parse_mode=None)
@@ -33,7 +32,6 @@ user_states = {}
 reseller_temp_data = {}
 vip_temp_data = {}
 
-# Menu Buttons Setup (Main Menu Layout)
 ADMIN_BUTTONS = [
     "🌐 VPN Decrypt List",
     "➕ Add VIP User", "✏️ Edit VIP", "🗑 Delete VIP", "🌐 View All VIPs",
@@ -52,7 +50,14 @@ def get_vpn_configs():
         print(f"[-] VPN Configs Parse Error: {str(e)}")
         return []
 
-# ==========================================\n# 2. CRYPTOGRAPHY & DECRYPTION ENGINE (XXTEA) - #bot.py အတိုင်း တိကျစွာ ပြန်ထည့်ထားသည်\n# ==========================================
+def get_admin_contact_markup():
+    markup = types.InlineKeyboardMarkup()
+    markup.add(types.InlineKeyboardButton(text="💬 Contact Admin", url="https://t.me/ahlflk2025"))
+    return markup
+
+# =========================================
+# 2. CRYPTOGRAPHY & DECRYPTION ENGINE (XXTEA)
+# =========================================
 def u32(x): return x & 0xFFFFFFFF
 
 def _longs_to_bytes(n, include_length):
@@ -173,7 +178,9 @@ def perform_decryption(config_url, outer_key, outer_delta_raw, method):
     json_obj = json.loads(raw_json_str)
     return {"AHLFLK": "Decrypted By @AHLFLK2025", **process_json_structure(json_obj, method)}
 
-# ==========================================\n# 3. LOCAL CACHE DATABASE & GOOGLE SHEET SYNC\n# ==========================================
+# =========================================
+# 3. LOCAL CACHE DATABASE & GOOGLE SHEET SYNC
+# =========================================
 def init_db():
     conn = sqlite3.connect(DB_FILE, check_same_thread=False)
     cursor = conn.cursor()
@@ -191,7 +198,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS users (
             tg_id INTEGER PRIMARY KEY,
             username TEXT,
-            credits INTEGER DEFAULT 100,
+            credits INTEGER DEFAULT 0,
             role TEXT DEFAULT 'user'
         )
     """)
@@ -241,7 +248,9 @@ def post_to_google_sheet(payload):
         print(f"Post to Sheet Error: {e}")
         return False
 
-# ==========================================\n# 4. HELPER UTILITIES & SECURITY\n# ==========================================
+# =========================================
+# 4. HELPER UTILITIES & SECURITY
+# =========================================
 def is_admin(user_id):
     return user_id == ADMIN_ID
 
@@ -280,43 +289,151 @@ def get_expired_date_string(created_str, months):
     expiry_dt = created_dt + timedelta(days=int(months) * 30)
     return expiry_dt.strftime("%Y-%m-%d %H:%M:%S")
 
+def is_user_expired(target_id):
+    conn = sqlite3.connect(DB_FILE, check_same_thread=False)
+    cursor = conn.cursor()
+    cursor.execute("SELECT unit_val, created_at FROM auth_keys WHERE target_id = ?", (str(target_id),))
+    row = cursor.fetchone()
+    conn.close()
+    if not row: return True
+    
+    exp_str = get_expired_date_string(row[1], row[0])
+    exp_dt = datetime.strptime(exp_str, "%Y-%m-%d %H:%M:%S")
+    return datetime.now() > exp_dt
+
 def make_main_keyboard(user_id):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     buttons = ADMIN_BUTTONS if is_admin(user_id) else RESELLER_BUTTONS
     
-    # 🌐 VPN Decrypt List ကို ထိပ်ဆုံးမှာ Row အပြည့်ပေါ်စေရန်
     markup.add(types.KeyboardButton("🌐 VPN Decrypt List"))
-    
-    # ကျန်တဲ့ခလုတ်တွေကို ၂ ခုစီ ဘေးချင်းကပ်ထည့်မည်
     other_buttons = [types.KeyboardButton(b) for b in buttons if b != "🌐 VPN Decrypt List"]
     markup.add(*other_buttons)
     return markup
 
-# ==========================================\n# 5. TELEGRAM BOT HANDLERS & INTERACTIONS\n# ==========================================
+# =========================================
+# 5. STATE CLEANER INTERCEPTOR (လုပ်လက်စ ဖျက်ခြင်း)
+# =========================================
+@bot.message_handler(func=lambda msg: msg.text in ADMIN_BUTTONS or msg.text in RESELLER_BUTTONS)
+def menu_button_interceptor(message):
+    user_id = str(message.from_user.id)
+    # လုပ်လက်စ အခြေအနေ ရှိနေလျှင် ဖျက်ပစ်မည်
+    if user_id in user_states and user_states[user_id] is not None:
+        user_states[user_id] = None
+        bot.send_message(message.chat.id, "🔄 <code>ယခင်လုပ်ဆောင်ချက်ကို ဖျက်သိမ်းပြီး အသစ်ကို စတင်လိုက်ပါပြီ။</code>", parse_mode="HTML")
+    
+    # ခလုတ်အလိုက် သက်ဆိုင်ရာ Function များသို့ လွှဲပေးခြင်း
+    if message.text == "🌐 VPN Decrypt List": show_decrypt_configs(message)
+    elif message.text == "➕ Add VIP User": add_vip_start(message)
+    elif message.text == "🗑 Delete VIP": delete_vip_start(message)
+    elif message.text in ["🌐 View All VIPs", "🔑 My VIP Users"]: view_vips(message)
+    elif message.text == "👤 Create Reseller": create_reseller_start(message)
+    elif message.text == "🗑 Delete Reseller": delete_reseller_start(message)
+    elif message.text == "📊 Reseller List": view_resellers(message)
+    elif message.text == "💰 My Balance": view_my_balance(message)
+
+# =========================================
+# 6. TELEGRAM BOT HANDLERS & WELCOME CARD INFO
+# =========================================
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     user_id = message.from_user.id
+    user_states[str(user_id)] = None # start နှိပ်လျှင်လည်း state reset လုပ်သည်
     pull_data_from_google_sheet()
-    if is_reseller(user_id):
-        bot.reply_to(message, "👋 မင်္ဂလာပါ! AHLFLK VPN Decrypt & Control Panel မှ ကြိုဆိုပါသည်။", reply_markup=make_main_keyboard(user_id))
+    
+    # 1. Admin Info Card
+    if is_admin(user_id):
+        welcome_text = (
+            "👑 <b>[ ACCOUNT INFO - ADMIN PANEL ]</b>\n"
+            "───────────────────\n"
+            f"👤 Admin Name: <code>{message.from_user.first_name}</code>\n"
+            f"🆔 Telegram ID: <code>{user_id}</code>\n"
+            "🌟 Role Status: <code>Super Admin</code>\n"
+            "💰 Credit Balance: <code>Unlimited ♾️</code>\n"
+            "───────────────────\n"
+            "⚙️ စနစ်တစ်ခုလုံးကို စီမံခန့်ခွဲရန် အောက်ပါ Menu များကို အသုံးပြုနိုင်ပါသည်။"
+        )
+        bot.reply_to(message, welcome_text, parse_mode="HTML", reply_markup=make_main_keyboard(user_id))
+    
+    # 2. Reseller Info Card
+    elif is_reseller(user_id):
+        credits = get_reseller_credits(user_id)
+        welcome_text = (
+            "👤 <b>[ ACCOUNT INFO - RESELLER PANEL ]</b>\n"
+            "───────────────────\n"
+            f"👤 Reseller Name: <code>{message.from_user.first_name}</code>\n"
+            f"🆔 Telegram ID: <code>{user_id}</code>\n"
+            "🌟 Role Status: <code>Authorized Reseller</code>\n"
+            f"💰 Credit Balance: <code>{credits}</code> Credits\n"
+            "───────────────────\n"
+            "➕ VIP အကောင့်သစ်များ ဖန်တီးရန်နှင့် စီမံရန် အသုံးပြုနိုင်ပါသည်။"
+        )
+        # Token ကုန်လျှင် သို့မဟုတ် ခေါ်ယူခွင့်မရှိပါက Contact Admin တွဲပြမည်
+        markup = make_main_keyboard(user_id) if credits > 0 else get_admin_contact_markup()
+        bot.reply_to(message, welcome_text, parse_mode="HTML", reply_markup=markup)
+        
+    # 3. Normal VIP User Card & Expired Protection
     else:
-        bot.reply_to(message, "❌ သင်သည် ဤ Bot ကို အသုံးပြုခွင့်မရှိပါ။ လူကြီးမင်း VIP / Reseller ဝယ်ယူရန် Admin ကို ဆက်သွယ်ပါ။")
+        conn = sqlite3.connect(DB_FILE, check_same_thread=False)
+        cursor = conn.cursor()
+        cursor.execute("SELECT unit_val, created_at, key_string FROM auth_keys WHERE target_id = ?", (str(user_id),))
+        row = cursor.fetchone()
+        conn.close()
+        
+        if row:
+            exp_date = get_expired_date_string(row[1], row[0])
+            # သက်တမ်းကုန်/မကုန် စစ်ဆေးခြင်း
+            if is_user_expired(user_id):
+                expired_text = (
+                    "⚠️ <b>[ ACCESS EXPIRED ]</b>\n"
+                    "───────────────────\n"
+                    f"🆔 User ID: <code>{user_id}</code>\n"
+                    f"📅 Expired Date: <code>{exp_date}</code>\n"
+                    "───────────────────\n"
+                    "❌ လူကြီးမင်း၏ VIP သက်တမ်း ကုန်ဆုံးသွားပြီ ဖြစ်သဖြင့် အသုံးပြု၍မရတော့ပါ။ သက်တမ်းတိုးရန် Admin ကို ဆက်သွယ်ပါ။"
+                )
+                bot.reply_to(message, expired_text, parse_mode="HTML", reply_markup=get_admin_contact_markup())
+            else:
+                user_text = (
+                    "🌐 <b>[ ACCOUNT INFO - VIP MEMBER ]</b>\n"
+                    "───────────────────\n"
+                    f"👤 Name: <code>{row[2]}</code>\n"
+                    f"🆔 User ID: <code>{user_id}</code>\n"
+                    "🌟 Role Status: <code>VIP Premium Member</code>\n"
+                    f"📅 Expired Date: <code>{exp_date}</code>\n"
+                    "───────────────────\n"
+                    "🎉 လူကြီးမင်းသည် VPN Decrypt List ကို အသုံးပြုနိုင်ပါပြီ။"
+                )
+                # Normal User ကီးဘုတ်တွင် Decrypt List ခလုတ်တစ်ခုတည်းသာ ပေါ်စေမည်
+                normal_markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+                normal_markup.add(types.KeyboardButton("🌐 VPN Decrypt List"))
+                bot.reply_to(message, user_text, parse_mode="HTML", reply_markup=normal_markup)
+        else:
+            unauth_text = (
+                "❌ <b>[ ACCESS DENIED ]</b>\n"
+                "───────────────────\n"
+                f"🆔 Your ID: <code>{user_id}</code>\n"
+                "───────────────────\n"
+                "သင်သည် စနစ်ထဲတွင် မှတ်ပုံတင်ထားခြင်းမရှိပါ။ အသုံးပြုလိုပါက ကတ်ဝယ်ယူရန် Admin ကို ဆက်သွယ်ပါ။"
+            )
+            bot.reply_to(message, unauth_text, parse_mode="HTML", reply_markup=get_admin_contact_markup())
 
-# 🌐 VPN Decrypt List (Main Menu Trigger)
-@bot.message_handler(func=lambda msg: msg.text == "🌐 VPN Decrypt List")
+# --- 🌐 VPN DECRYPT LIST WORKFLOW ---
 def show_decrypt_configs(message):
-    if not is_reseller(message.from_user.id): return
+    user_id = message.from_user.id
+    if not is_admin(user_id) and not is_reseller(user_id) and is_user_expired(user_id):
+        return bot.reply_to(message, "❌ သင့်သက်တမ်း ကုန်ဆုံးသွားပါသဖြင့် အသုံးပြုခွင့်မရှိတော့ပါ။", reply_markup=get_admin_contact_markup())
+        
     configs = get_vpn_configs()
     if not configs:
-        return bot.reply_to(message, "❌ Render Environment Variables ထဲတွင် မည်သည့် VPN Config မှ သတ်မှတ်ထားခြင်းမရှိသေးပါ။")
+        return bot.reply_to(message, "❌ မည်သည့် VPN Config မှ သတ်မှတ်ထားခြင်းမရှိသေးပါ။")
 
-    markup = types.InlineKeyboardMarkup(row_width=2) # ဘေးချင်းကပ် ၂ ခုစီ ထည့်ရန်
+    markup = types.InlineKeyboardMarkup(row_width=2) 
     buttons = []
     for idx, cfg in enumerate(configs, 1):
         buttons.append(types.InlineKeyboardButton(f"[{idx}] {cfg.get('name', 'Unknown')}", callback_data=f"dec_{idx-1}"))
     
     markup.add(*buttons)
-    bot.reply_to(message, "🌐 **ကျေးဇူးပြု၍ Decrypt ပြုလုပ်လိုသော VPN ကို ရွေးချယ်ပေးပါ:**", reply_markup=markup, parse_mode="Markdown")
+    bot.reply_to(message, "🌐 **ကျေးဇူးပြု၍ Decrypt ပြုလိုသော VPN ကို ရွေးချယ်ပေးပါ:**", reply_markup=markup, parse_mode="Markdown")
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("dec_"))
 def handle_decrypt_callback(call):
@@ -327,13 +444,18 @@ def handle_decrypt_callback(call):
         return bot.answer_callback_query(call.id, "❌ Config မတွေ့ရှိပါ။")
         
     selected_cfg = configs[idx]
-    bot.answer_callback_query(call.id, f"⚡ {selected_cfg.get('name')} ကို Decrypt လုပ်နေသည်...")
     
-    # မျက်စိမရှုပ်အောင် Inline keyboard ကို ဖျက်ပေးခြင်း
-    bot.delete_message(call.message.chat.id, call.message.message_id)
+    # ⚠️ ခလုတ်ကို မဖျောက်ဘဲ "⚡ Decrypt လုပ်နေသည်..." ဟု စာသားကို Edit လုပ်ပြီး ပြောင်းလဲပြသခြင်း
+    original_markup = call.message.reply_markup
+    bot.edit_message_text(
+        text=f"⚡ <b>{selected_cfg.get('name')} ကို Decrypt လုပ်နေပါသည်... ခေတ္တစောင့်ဆိုင်းပေးပါ...⏳</b>",
+        chat_id=call.message.chat.id,
+        message_id=call.message.message_id,
+        parse_mode="HTML",
+        reply_markup=original_markup
+    )
     
     try:
-        # မူရင်း perform_decryption engine ဖြင့် XXTEA ကို စနစ်တကျ Decrypt လုပ်မည်
         decrypted_obj = perform_decryption(
             config_url=selected_cfg.get("url"),
             outer_key=selected_cfg.get("outer_key"),
@@ -353,18 +475,24 @@ def handle_decrypt_callback(call):
                 caption=f"✅ <b>{selected_cfg.get('name')} Decrypted Successfully!</b>\n🌐 Method: <code>{selected_cfg.get('method')}</code>", 
                 parse_mode="HTML"
             )
-        import os
         os.remove(output_file)
+        
+        # ⚠️ အောင်မြင်သွားလျှင် Message Text အား "Decrypted Successfully" သို့ ပြောင်းလဲပေးခြင်း
+        bot.edit_message_text(
+            text=f"✅ <b>{selected_cfg.get('name')} Decrypted Successfully!</b>",
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            parse_mode="HTML",
+            reply_markup=original_markup
+        )
     except Exception as e:
         bot.send_message(call.message.chat.id, f"❌ Decryption Engine အမှားအယွင်းရှိနေပါသည်-\n<code>{str(e)}</code>", parse_mode="HTML")
 
 # --- ADD VIP USER ---
-@bot.message_handler(func=lambda msg: msg.text == "➕ Add VIP User")
 def add_vip_start(message):
     user_id = message.from_user.id
-    if not is_reseller(user_id): return
     if get_reseller_credits(user_id) <= 0:
-        return bot.reply_to(message, "❌ သင့်မှာ Credit မလုံလောက်တော့ပါသဖြင့် VIP အသစ် ထည့်လို့မရပါ။")
+        return bot.reply_to(message, "❌ သင့်မှာ VIP အကောင့်ထုတ်ရန် Credit မလုံလောက်တော့ပါ။", reply_markup=get_admin_contact_markup())
     
     user_states[str(user_id)] = "WAIT_VIP_TGID"
     bot.reply_to(message, "👤 **VIP အသုံးပြုသူရဲ့ Telegram ID ကို ရိုက်ထည့်ပေးပါ:**", parse_mode="Markdown", reply_markup=types.ForceReply(selective=True))
@@ -399,16 +527,15 @@ def add_vip_month(message):
     req_credits = int(months)
     if get_reseller_credits(int(user_id)) < req_credits:
         user_states[user_id] = None
-        return bot.reply_to(message, f"❌ သင့်မှာ Credit {req_credits} ခု မရှိပါသဖြင့် VIP မဖန်တီးနိုင်ပါ။")
+        return bot.reply_to(message, f"❌ သင့်မှာ Credit {req_credits} ခု မရှိပါသဖြင့် VIP မဖန်တီးနိုင်ပါ။", reply_markup=get_admin_contact_markup())
     
     data = vip_temp_data[user_id]
     created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
-    # VPN APK ID နေရာတွင် Telegram ID ကို သုံးပြီး Apps Script သို့ လှမ်းပို့သည် (မပြင်ချင်ဘူးဆိုတဲ့အတိုင်း ညှိထားပေးသည်)
     payload = {
         "method": "ADD_VIP",
         "targetUsers": data["target_id"],
-        "targetKey": data["target_id"], # APK ID နေရာမှာ Telegram ID ကို အစားထိုးထည့်သွင်းခြင်း
+        "targetKey": data["target_id"], 
         "nameVal": data["name"],
         "unitVal": req_credits,
         "dateVal": created_at
@@ -424,7 +551,7 @@ def add_vip_month(message):
             f"✅ <b>VIP အကောင့်ကို အောင်မြင်စွာ ဖန်တီးပြီးပါပြီ။</b>\n\n"
             f"🆔 TG ID: <code>{data['target_id']}</code>\n"
             f"👤 အမည်: <code>{data['name']}</code>\n"
-            f"🔑 VPN Decrypt User ID: <code>{data['target_id']}</code>\n"
+            f"🔑 User ID Token: <code>{data['target_id']}</code>\n"
             f"📅 Expired: <code>{exp_date}</code>\n"
             f"💰 နှုတ်ယူခဲ့သည့် Credit: <code>{req_credits}</code>"
         )
@@ -435,9 +562,7 @@ def add_vip_month(message):
     user_states[user_id] = None
 
 # --- DELETE VIP ---
-@bot.message_handler(func=lambda msg: msg.text == "🗑 Delete VIP")
 def delete_vip_start(message):
-    if not is_reseller(message.from_user.id): return
     user_states[str(message.from_user.id)] = "WAIT_DEL_VIP"
     bot.reply_to(message, "🗑 **ဖျက်ထုတ်လိုသော VIP အသုံးပြုသူ၏ Telegram ID ကို ရိုက်ထည့်ပေးပါ:**", parse_mode="Markdown")
 
@@ -450,7 +575,7 @@ def delete_vip_execute(message):
         "method": "DELETE_DATA",
         "key": "VIP_ACCOUNT",
         "targetUsers": tg_id,
-        "targetKey": tg_id # targetKey (APK ID နေရာ) ကို TG ID နဲ့ပဲ တိုက်စစ်ခိုင်းမည်
+        "targetKey": tg_id 
     }
     
     bot.send_message(message.chat.id, "⏳ Google Sheet မှ ဒေတာ ဖျက်ထုတ်နေပါသည်...")
@@ -462,11 +587,8 @@ def delete_vip_execute(message):
     user_states[user_id] = None
 
 # --- VIEW VIP USERS ---
-@bot.message_handler(func=lambda msg: msg.text in ["🌐 View All VIPs", "🔑 My VIP Users"])
 def view_vips(message):
-    if not is_reseller(message.from_user.id): return
     pull_data_from_google_sheet()
-    
     conn = sqlite3.connect(DB_FILE, check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute("SELECT target_id, key_string, vpn_key, unit_val, created_at FROM auth_keys")
@@ -484,7 +606,6 @@ def view_vips(message):
     bot.reply_to(message, res, parse_mode="HTML")
 
 # --- CREATE RESELLER (ADMIN ONLY) ---
-@bot.message_handler(func=lambda msg: msg.text == "👤 Create Reseller")
 def create_reseller_start(message):
     if not is_admin(message.from_user.id): return
     user_states[str(message.from_user.id)] = "WAIT_RES_ID"
@@ -520,11 +641,10 @@ def create_reseller_credits(message):
     data = reseller_temp_data[user_id]
     created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
-    # APK ID နေရာတွင် Token အဖြစ် သုံးရန် TOKEN_[TG_ID] ပုံစံမျိုး လှမ်းပို့ပေးပါမည်
     payload = {
         "method": "ADD_VIP",
         "targetUsers": data["tg_id"],
-        "targetKey": f"TOKEN_{data['tg_id']}", # Reseller အတွက် Token ပုံစံမျိုး ထည့်သွင်းခြင်း
+        "targetKey": f"TOKEN_{data['tg_id']}", 
         "nameVal": f"{data['name']}_Reseller",
         "unitVal": int(credits),
         "dateVal": created_at
@@ -543,7 +663,6 @@ def create_reseller_credits(message):
     user_states[user_id] = None
 
 # --- DELETE RESELLER (ADMIN ONLY) ---
-@bot.message_handler(func=lambda msg: msg.text == "🗑 Delete Reseller")
 def delete_reseller_start(message):
     if not is_admin(message.from_user.id): return
     user_states[str(message.from_user.id)] = "WAIT_DEL_RES"
@@ -570,7 +689,6 @@ def delete_reseller_execute(message):
     user_states[user_id] = None
 
 # --- VIEW RESELLERS (ADMIN ONLY) ---
-@bot.message_handler(func=lambda msg: msg.text == "📊 Reseller List")
 def view_resellers(message):
     if not is_admin(message.from_user.id): return
     pull_data_from_google_sheet()
@@ -588,18 +706,20 @@ def view_resellers(message):
     bot.reply_to(message, res, parse_mode="HTML")
 
 # --- MY BALANCE ---
-@bot.message_handler(func=lambda msg: msg.text == "💰 My Balance")
 def view_my_balance(message):
     user_id = message.from_user.id
-    if not is_reseller(user_id): return
     pull_data_from_google_sheet()
     credits = get_reseller_credits(user_id)
-    bot.reply_to(message, f"💰 <b>လူကြီးမင်း၏ လက်ကျန် Credit:</b> <code>{credits}</code> ခု ဖြစ်ပါသည်။", parse_mode="HTML")
+    
+    markup = make_main_keyboard(user_id) if credits > 0 else get_admin_contact_markup()
+    bot.reply_to(message, f"💰 <b>လူကြီးမင်း၏ လက်ကျန် Credit:</b> <code>{credits}</code> ခု ဖြစ်ပါသည်။", parse_mode="HTML", reply_markup=markup)
 
-# ==========================================\n# 6. FLASK WEBHOOK ENGINE & WEB STARTUP\n# ==========================================
+# =========================================
+# 7. FLASK WEBHOOK ENGINE & WEB STARTUP
+# =========================================
 @app.route('/', methods=['GET'])
 def index():
-    return "AHLFLK Webhook Controller Active - XXTEA Decrypt Engine Sync Done!", 200
+    return "AHLFLK XXTEA Premium Multi-User Dynamic Panel is Online!", 200
 
 @app.route('/' + BOT_TOKEN, methods=['POST'])
 def getMessage():
@@ -617,7 +737,7 @@ def run_flask():
 
 if __name__ == "__main__":
     init_db()
-    pull_data_from_google_sheet() # Bot စစချင်း Sheet ဒေတာကို Cache တစ်ခါတည်းဆွဲမည်
+    pull_data_from_google_sheet()
     
     if PUBLIC_URL:
         bot.remove_webhook()
