@@ -1,5 +1,5 @@
 # # All-in-One Safe Decryptor & Telegram VIP Management Bot (Google Sheet Sync Mode)
-# Py By @AHLFLK2025 (Connected with Google Apps Script API - Month Locked)
+# Py By @AHLFLK2025 (Original GitHub Decrypt Engine Engine + Sheet Fixed)
 
 import os
 import re
@@ -31,9 +31,9 @@ user_states = {}
 reseller_temp_data = {}
 vip_temp_data = {}
 
-# Keyboard Menu Layouts
-ADMIN_BUTTONS = ["🌐 VPN Decrypt List", "➕ Add Decrypt VIP", "🗑 Delete Decrypt VIP", "🌐 View All VIPs", "👤 Create Reseller", "📊 Reseller List", "🗑 Delete Reseller", "💰 My Balance"]
-RESELLER_BUTTONS = ["🌐 VPN Decrypt List", "➕ Add Decrypt VIP", "🗑 Delete Decrypt VIP", "🔑 My VIP Users", "💰 My Balance"]
+# Keyboard Menu Layouts (Updated to match your requirements)
+ADMIN_BUTTONS = ["🌐 VPN Decrypt List", "➕ Add VIP User", "✏️ Edit VIP", "🗑 Delete VIP", "🌐 View All VIPs", "👤 Create Reseller", "📊 Reseller List", "🗑 Delete Reseller", "💰 My Balance"]
+RESELLER_BUTTONS = ["🌐 VPN Decrypt List", "➕ Add VIP User", "✏️ Edit VIP", "🗑 Delete VIP", "🔑 My VIP Users", "💰 My Balance"]
 USER_BUTTONS = ["🌐 VPN Decrypt List", "💰 My Balance"]
 
 def get_admin_contact_markup():
@@ -43,7 +43,7 @@ def get_admin_contact_markup():
 
 @app.route('/')
 def home():
-    return "VIP & Reseller Google Sheet-Locked Bot is Active!"
+    return "VIP & Reseller Bot is Active!"
 
 @app.route('/' + BOT_TOKEN, methods=['POST'])
 def webhook():
@@ -59,10 +59,11 @@ def run_server():
     port = int(os.environ.get('PORT', 8080))
     app.run(host='0.0.0.0', port=port)
 
-# ==========================================
-# 2. CRYPTOGRAPHY & DECRYPTION ENGINE (ORIGINAL GITHUB)
-# ==========================================
-def u32(x): return x & 0xFFFFFFFF
+# =======================================================
+# 2. ORIGINAL GITHUB DECRYPTION ENGINE (UNTOUCHED/NOT MODIFIED)
+# =======================================================
+def u32(x): 
+    return x & 0xFFFFFFFF
 
 def _longs_to_bytes(n, include_length):
     length = len(n)
@@ -82,15 +83,18 @@ def _bytes_to_longs(s):
     return list(struct.unpack('<%dI' % (len(s) // 4), s))
 
 def _fix_key(key_bytes):
-    if len(key_bytes) == 16: return key_bytes
+    if len(key_bytes) == 16: 
+        return key_bytes
     return key_bytes[:16] if len(key_bytes) > 16 else key_bytes + b'\x00' * (16 - len(key_bytes))
 
 def decrypt_xxtea(data, key, delta):
-    if len(data) == 0: return b''
+    if len(data) == 0: 
+        return b''
     v = _bytes_to_longs(data)
     k = _bytes_to_longs(_fix_key(key))
     n = len(v)
-    if n < 2: return data 
+    if n < 2: 
+        return data 
 
     q = 52 // n + 6
     sum_val = u32(q * delta)
@@ -111,43 +115,55 @@ def decrypt_xxtea(data, key, delta):
     return _longs_to_bytes(v, True)
 
 def parse_delta(delta_val):
-    if isinstance(delta_val, int): return delta_val
+    if isinstance(delta_val, int): 
+        return delta_val
     try:
         if isinstance(delta_val, str) and delta_val.strip().startswith('-'):
             clean_hex = delta_val.replace('-', '').strip()
             return -int(clean_hex, 16)
-        else: return int(delta_val, 16)
-    except: return 0x2e0ba747
+        else: 
+            return int(delta_val, 16)
+    except: 
+        return 0x2e0ba747
 
 def decrypt_inner_base64_recursive(encrypted_str):
-    if not isinstance(encrypted_str, str) or len(encrypted_str) < 4: return encrypted_str
+    if not isinstance(encrypted_str, str) or len(encrypted_str) < 4: 
+        return encrypted_str
     try:
         clean_str = encrypted_str.replace('\n', '').replace('\r', '').strip()
-        if not re.match(r'^[A-Za-z0-9+/=]+$', clean_str): return encrypted_str
+        if not re.match(r'^[A-Za-z0-9+/=]+$', clean_str): 
+            return encrypted_str
         missing_padding = len(clean_str) % 4
-        if missing_padding: clean_str += '=' * (4 - missing_padding)
+        if missing_padding: 
+            clean_str += '=' * (4 - missing_padding)
         decoded_bytes = base64.b64decode(clean_str)
         decoded_str = decoded_bytes.decode('utf-8')
         if len(decoded_str) > 4 and re.match(r'^[A-Za-z0-9+/=]+$', decoded_str.replace('\n','').strip()):
-            if any(x in decoded_str for x in ["HTTP/", "vless://", "vmess://", "trojan://", "ss://"]): return decoded_str
+            if any(x in decoded_str for x in ["HTTP/", "vless://", "vmess://", "trojan://", "ss://"]): 
+                return decoded_str
             return decrypt_inner_base64_recursive(decoded_str)
         return decoded_str
-    except: return encrypted_str
+    except: 
+        return encrypted_str
 
 def decrypt_inner_bamar(encrypted_str):
-    if not encrypted_str or len(encrypted_str) < 10: return encrypted_str
+    if not encrypted_str or len(encrypted_str) < 10: 
+        return encrypted_str
     try:
         data = base64.b64decode(encrypted_str)
         decrypted_bytes = decrypt_xxtea(data, b"9488362782103982762188", 0x2e0ba747)
         return decrypted_bytes.decode('utf-8', errors='ignore') if decrypted_bytes else encrypted_str
-    except: return encrypted_str
+    except: 
+        return encrypted_str
 
 def decrypt_inner_pnt(encrypted_str):
-    if not encrypted_str or len(encrypted_str) < 15: return encrypted_str
+    if not encrypted_str or len(encrypted_str) < 15: 
+        return encrypted_str
     try:
         data = base64.b64decode(encrypted_str, validate=True)
         decrypted_bytes = decrypt_xxtea(data, b"7361", 0x2e0ba747)
-        if not decrypted_bytes: return encrypted_str
+        if not decrypted_bytes: 
+            return encrypted_str
         intermediate_str = decrypted_bytes.decode('utf-8')
         key_int = 7361
         final_str = []
@@ -155,15 +171,21 @@ def decrypt_inner_pnt(encrypted_str):
             val = (ord(char) - key_int - key_int) & 0xFFFF
             final_str.append(chr(val))
         return "".join(final_str)
-    except: return encrypted_str
+    except: 
+        return encrypted_str
 
 def process_json_structure(data, method):
-    if isinstance(data, dict): return {k: process_json_structure(v, method) for k, v in data.items()}
-    elif isinstance(data, list): return [process_json_structure(i, method) for i in data]
+    if isinstance(data, dict): 
+        return {k: process_json_structure(v, method) for k, v in data.items()}
+    elif isinstance(data, list): 
+        return [process_json_structure(i, method) for i in data]
     elif isinstance(data, str):
-        if method == "bamar": return decrypt_inner_bamar(data)
-        elif method == "pnt_special": return decrypt_inner_pnt(data)
-        elif method == "base64_recursive": return decrypt_inner_base64_recursive(data)
+        if method == "bamar": 
+            return decrypt_inner_bamar(data)
+        elif method == "pnt_special": 
+            return decrypt_inner_pnt(data)
+        elif method == "base64_recursive": 
+            return decrypt_inner_base64_recursive(data)
         return data
     return data
 
@@ -191,9 +213,9 @@ def get_vpn_configs():
         print(f"[-] VPN Configs Parse Error: {str(e)}")
         return []
 
-# ==========================================
-# 3. DATABASE & GOOGLE SHEET SYNC SYSTEM (UPDATED structure)
-# ==========================================
+# ========================================================
+# 3. DATABASE & GOOGLE SHEET SYNC SYSTEM (COLUMN BALANCED)
+# ========================================================
 def init_db():
     conn = sqlite3.connect(DB_FILE, check_same_thread=False)
     try:
@@ -252,7 +274,6 @@ def pull_data_from_google_sheet():
                 t_id = str(t_id).strip()
                 
                 # --- Reseller Processing ---
-                # Key က တိုကင်တန်ဖိုးဖြစ်ပြီး Name ထဲမှာ _Reseller ပါရင် Reseller အဖြစ်သတ်မှတ်မည်
                 if "_Reseller" in str(k_str):
                     try:
                         clean_name = str(k_str).replace("_Reseller", "").strip()
@@ -271,7 +292,7 @@ def pull_data_from_google_sheet():
                         print("Reseller Parse Error:", ex)
                 
                 # --- VIP Processing ---
-                elif key_apk == "DECRYPT_VIP_ACCESS":
+                elif key_apk == "DECRYPT_VIP_ACCESS" or (str(key_apk).isdigit() == False and "_Reseller" not in str(k_str)):
                     try:
                         clean_months = int(float(m_val)) if str(m_val).replace('.','',1).isdigit() else 1
                         owner_id = existing_vip_owners.get(t_id, str(ADMIN_ID))
@@ -325,7 +346,7 @@ def check_vip_status(user_id):
     
     conn = sqlite3.connect(DB_FILE, check_same_thread=False)
     try:
-        cursor = sqlite3.connect(DB_FILE).cursor()
+        cursor = conn.cursor()
         cursor.execute("SELECT role, token_balance, expire_date FROM users WHERE tg_id = ?", (str(user_id),))
         user_row = cursor.fetchone()
         if user_row and user_row[0] == 'reseller':
@@ -408,7 +429,6 @@ def get_main_keyboard(user_id):
 
 def generate_account_info(user_id, first_name):
     is_vip, status_msg = check_vip_status(user_id)
-    
     info = f"👤 <b>နာမည်:</b> {first_name}\n"
     info += f"🆔 <b>Telegram ID:</b> <code>{user_id}</code>\n"
     
@@ -456,7 +476,7 @@ def handle_menu_buttons(message):
         if not configs: 
             return bot.reply_to(message, "📭 Decrypt ပြုလုပ်ရန် Config မရှိသေးပါ။")
             
-        markup = types.InlineKeyboardMarkup(row_width=2)  # ပြင်ဆင်ချက် - ခလုတ်များကို ဘေးချင်းကပ် ၂ ခုစီပြရန်
+        markup = types.InlineKeyboardMarkup(row_width=2) 
         inline_buttons = []
         for idx, item in enumerate(configs):
             inline_buttons.append(types.InlineKeyboardButton(text=item.get("name", f"Config {idx+1}"), callback_data=f"dec_{idx}"))
@@ -469,10 +489,15 @@ def handle_menu_buttons(message):
         info_msg = "ℹ️ <b>သင့်၏ အကောင့်အချက်အလက်များ:</b>\n\n" + generate_account_info(user_id, message.from_user.first_name)
         bot.reply_to(message, info_msg, parse_mode="HTML")
 
-    elif message.text == "➕ Add Decrypt VIP":
+    elif message.text == "➕ Add VIP User":
         if not is_reseller(user_id): return
         bot.reply_to(message, "👉 ထည့်သွင်းမည့် VIP ရဲ့ <b>Telegram ID</b> ကို ပို့ပေးပါ:", parse_mode="HTML")
         user_states[user_id] = "ADD_VIP_ID"
+
+    elif message.text == "✏️ Edit VIP":
+        if not is_reseller(user_id): return
+        bot.reply_to(message, "👉 ပြင်ဆင်မည့် VIP ရဲ့ <b>Telegram ID</b> ကို ပို့ပေးပါ:", parse_mode="HTML")
+        user_states[user_id] = "EDIT_VIP_ID"
 
     elif message.text == "🔑 My VIP Users":
         if not is_reseller(user_id): return
@@ -502,7 +527,7 @@ def handle_menu_buttons(message):
             res += f"🆔 <code>{r[0]}</code> | 👤 <code>{r[1]}</code> | ⏳ <code>{r[2]} Months</code>\n"
         bot.reply_to(message, res, parse_mode="HTML")
 
-    elif message.text == "🗑 Delete Decrypt VIP":
+    elif message.text == "🗑 Delete VIP":
         if not is_reseller(user_id): return
         bot.reply_to(message, "👉 ဖြုတ်ထုတ်လိုသော VIP ရဲ့ <b>Telegram ID</b> ကို ပို့ပေးပါ:", parse_mode="HTML")
         user_states[user_id] = "DEL_VIP_ID"
@@ -544,13 +569,13 @@ def process_inputs(message):
     if state == "ADD_VIP_ID":
         target = message.text.strip()
         if not target.isdigit(): return bot.reply_to(message, "❌ ID သည် ဂဏန်းသီးသန့် ဖြစ်ရပါမည်။ တစ်ခေါက်ပြန်ပို့ပေးပါ:")
-        vip_temp_data[user_id] = {"target_id": target}
-        bot.reply_to(message, "👉 ထည့်သွင်းမည့်သူ၏ အမည် သို့မဟုတ် ဖုန်းနံပါတ်ကို ပို့ပေးပါ:")
+        vip_temp_data[user_id] = {"target_id": target, "mode": "sync"}
+        bot.reply_to(message, "👉 ထည့်သွင်းမည့်သူ၏ အမည်ကို ပို့ပေးပါ:")
         user_states[user_id] = "ADD_VIP_NAME"
 
     elif state == "ADD_VIP_NAME":
         vip_temp_data[user_id]["name"] = message.text.strip()
-        bot.reply_to(message, "👉 အသုံးပြုခွင့်ပေးမည့် <b>သက်တမ်းလအရေအတွက် (ဥပမာ- 1 သို့မဟုတ် 3)</b> ကို ဂဏန်းသီးသန့် ပို့ပေးပါ:", parse_mode="HTML")
+        bot.reply_to(message, "👉 အသုံးပြုခွင့်ပေးမည့် <b>သက်တမ်းလအရေအတွက် (ဂဏန်းသီးသန့်)</b> ကို ပို့ပေးပါ:", parse_mode="HTML")
         user_states[user_id] = "ADD_VIP_MONTH"
 
     elif state == "ADD_VIP_MONTH":
@@ -568,15 +593,34 @@ def process_inputs(message):
         target_id = vip_temp_data[user_id]["target_id"]
         target_name = vip_temp_data[user_id]["name"]
         start_date = datetime.now().strftime("%Y-%m-%d")
+        mode = vip_temp_data[user_id]["mode"]
         
-        success = push_to_google_sheet("sync", target_id, target_name, "DECRYPT_VIP_ACCESS", start_date, req_token)
+        success = push_to_google_sheet(mode, target_id, target_name, "DECRYPT_VIP_ACCESS", start_date, req_token)
         if success:
             deduct_reseller_tokens(user_id, req_token)
             pull_data_from_google_sheet()
-            bot.reply_to(message, f"✅ VIP အကောင့် အောင်မြင်စွာ ထည့်သွင်းပြီးပါပြီ။\n👤 အမည်: <code>{target_name}</code>\n⏳ သက်တမ်း: <code>{req_token}</code> လ", parse_mode="HTML")
+            bot.reply_to(message, f"✅ VIP User ကို Sheet ထဲသို့ အောင်မြင်စွာ သိမ်းဆည်းပြီးပါပြီ။\n👤 အမည်: <code>{target_name}</code>\n⏳ သက်တမ်း: <code>{req_token}</code> လ", parse_mode="HTML")
         else:
             bot.reply_to(message, "❌ Google Sheet Engine သို့ အချက်အလက်ပို့ရန် အဆင်မပြေပါ။")
         user_states[user_id] = None
+
+    # --- EDIT VIP PROCESS ---
+    elif state == "EDIT_VIP_ID":
+        target = message.text.strip()
+        if not target.isdigit(): return bot.reply_to(message, "❌ ID သည် ဂဏန်းသီးသန့် ဖြစ်ရပါမည်:")
+        
+        conn = sqlite3.connect(DB_FILE, check_same_thread=False)
+        cursor = conn.cursor()
+        cursor.execute("SELECT key_string FROM auth_keys WHERE target_id = ?", (target,))
+        row = cursor.fetchone()
+        conn.close()
+        
+        if not row and not is_admin(user_id):
+            return bot.reply_to(message, "❌ စနစ်ထဲတွင် ထို VIP ID အကောင့်ကို ရှာမတွေ့ပါ။")
+            
+        vip_temp_data[user_id] = {"target_id": target, "mode": "edit", "name": row[0] if row else "Edited_VIP"}
+        bot.reply_to(message, "👉 တိုးမြှင့်လိုသော <b>သက်တမ်းလအရေအတွက် (ဂဏန်းသီးသန့်)</b> ကို ပို့ပေးပါ:", parse_mode="HTML")
+        user_states[user_id] = "ADD_VIP_MONTH"
 
     # --- DELETE VIP PROCESS ---
     elif state == "DEL_VIP_ID":
@@ -594,7 +638,7 @@ def process_inputs(message):
         target = message.text.strip()
         if not target.isdigit(): return bot.reply_to(message, "❌ Telegram ID မှာ ဂဏန်းဖြစ်ရပါမည်:")
         reseller_temp_data[user_id] = {"res_id": target}
-        bot.reply_to(message, "👉 Reseller ရဲ့ နာမည် သို့မဟုတ် အမှတ်အသား ပို့ပေးပါ:")
+        bot.reply_to(message, "👉 Reseller ရဲ့ နာမည် ပို့ပေးပါ:")
         user_states[user_id] = "ADD_RES_NAME"
 
     elif state == "ADD_RES_NAME":
@@ -618,7 +662,7 @@ def process_inputs(message):
         target_tokens = reseller_temp_data[user_id]["tokens"]
         start_date = datetime.now().strftime("%Y-%m-%d")
         
-        # ပြင်ဆင်ချက် - Column C ထဲကို Token (Key parameter)၊ Column E ထဲကို Months ထည့်သွင်းခြင်း
+        # Column C ထဲကို Token (Key parameter)၊ Column E ထဲကို Months ထည့်သွင်းခြင်း
         success = push_to_google_sheet("sync", target_id, target_name, str(target_tokens), start_date, int(months))
         if success:
             pull_data_from_google_sheet()
@@ -630,12 +674,7 @@ def process_inputs(message):
     # --- DELETE RESELLER PROCESS ---
     elif state == "DEL_RES_ID":
         target = message.text.strip()
-        # Reseller ကို ဖျက်ရန်အတွက် Key ကို ရှာပြီး Sheet API မှတဆင့် ဖြုတ်ချခြင်း
-        success = push_to_google_sheet("delete", target, "", "RESELLER_ACCOUNT", "", 0)
-        if not success:
-            # တိုကင်တန်ဖိုးက တစ်ခုခုဖြစ်နေနိုင်၍ target id အတိုင်း တိုက်ရိုက်လှမ်းဖျက်ခိုင်းခြင်း
-            success = push_to_google_sheet("delete", target, "", "", "", 0)
-            
+        success = push_to_google_sheet("delete", target, "", "", "", 0)
         if success:
             pull_data_from_google_sheet()
             bot.reply_to(message, f"✅ Reseller ID: <code>{target}</code> ကို စနစ်ထဲမှ ဖျက်ထုတ်ပြီးပါပြီ။", parse_mode="HTML")
@@ -669,7 +708,7 @@ def handle_decryption_callback(call):
         )
         
         formatted_json = json.dumps(decrypted_json, indent=2, ensure_ascii=False)
-        filename = f"Decrypted_{target_config.get('name', 'Config')}.txt"
+        filename = f"Decrypted_{target_config.get('name', 'Config')}.json"
         
         with open(filename, "w", encoding="utf-8") as f:
             f.write(formatted_json)
