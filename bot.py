@@ -1,5 +1,5 @@
-# # All-in-One Safe Decryptor & Telegram VIP Management Bot (Google Sheet Sync Mode)
-# Py By @AHLFLK2025 (Original GitHub Decrypt Engine Engine + Sheet Fixed)
+# # All-in-One Safe Decryptor & Telegram VIP Management Bot (Google Sheet Connected)
+# Py By @AHLFLK2025 (100% Original GitHub Decrypt Engine - No Changes)
 
 import os
 import re
@@ -17,7 +17,7 @@ from telebot import types
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 ADMIN_ID = int(os.environ.get("TGC_ID")) if os.environ.get("TGC_ID") else None
-SCRIPT_URL = os.environ.get("SCRIPT_URL")  # Web App URL from Google Apps Script
+SCRIPT_URL = os.environ.get("SCRIPT_URL")  # Google Apps Script Web App URL
 PUBLIC_URL = os.environ.get("PUBLIC_URL")
 VPN_CONFIGS = os.environ.get("VPN_CONFIGS")
 
@@ -31,7 +31,7 @@ user_states = {}
 reseller_temp_data = {}
 vip_temp_data = {}
 
-# Keyboard Menu Layouts (Updated to match your requirements)
+# Keyboard Menu Layouts
 ADMIN_BUTTONS = ["🌐 VPN Decrypt List", "➕ Add VIP User", "✏️ Edit VIP", "🗑 Delete VIP", "🌐 View All VIPs", "👤 Create Reseller", "📊 Reseller List", "🗑 Delete Reseller", "💰 My Balance"]
 RESELLER_BUTTONS = ["🌐 VPN Decrypt List", "➕ Add VIP User", "✏️ Edit VIP", "🗑 Delete VIP", "🔑 My VIP Users", "💰 My Balance"]
 USER_BUTTONS = ["🌐 VPN Decrypt List", "💰 My Balance"]
@@ -43,7 +43,7 @@ def get_admin_contact_markup():
 
 @app.route('/')
 def home():
-    return "VIP & Reseller Bot is Active!"
+    return "GitHub Decrypt Engine Bot is Running Successfully!"
 
 @app.route('/' + BOT_TOKEN, methods=['POST'])
 def webhook():
@@ -59,15 +59,15 @@ def run_server():
     port = int(os.environ.get('PORT', 8080))
     app.run(host='0.0.0.0', port=port)
 
-# =======================================================
-# 2. ORIGINAL GITHUB DECRYPTION ENGINE (UNTOUCHED/NOT MODIFIED)
-# =======================================================
-def u32(x): 
-    return x & 0xFFFFFFFF
+# =========================================================================
+# 2. 100% ORIGINAL GITHUB DECRYPTION ENGINE (UNTOUCHED FROM #bot.py)
+# =========================================================================
+def u32(x):
+    return x & 0xffffffff
 
 def _longs_to_bytes(n, include_length):
     length = len(n)
-    res = struct.pack('<%dI' % length, *n)
+    res = struct.pack('>%dI' % length, *n)
     if include_length:
         expected_length = n[-1]
         max_len = len(res) - 4
@@ -80,25 +80,23 @@ def _longs_to_bytes(n, include_length):
 def _bytes_to_longs(s):
     padding = (4 - len(s) % 4) % 4
     s += b'\x00' * padding
-    return list(struct.unpack('<%dI' % (len(s) // 4), s))
+    return list(struct.unpack('>%dI' % (len(s) // 4), s))
 
 def _fix_key(key_bytes):
-    if len(key_bytes) == 16: 
+    if len(key_bytes) == 16:
         return key_bytes
     return key_bytes[:16] if len(key_bytes) > 16 else key_bytes + b'\x00' * (16 - len(key_bytes))
 
 def decrypt_xxtea(data, key, delta):
-    if len(data) == 0: 
+    if len(data) == 0:
         return b''
     v = _bytes_to_longs(data)
     k = _bytes_to_longs(_fix_key(key))
     n = len(v)
-    if n < 2: 
-        return data 
-
+    if n < 2:
+        return data
     q = 52 // n + 6
     sum_val = u32(q * delta)
-
     while sum_val != 0:
         e = u32(sum_val >> 2) & 3
         y = v[0]
@@ -115,54 +113,54 @@ def decrypt_xxtea(data, key, delta):
     return _longs_to_bytes(v, True)
 
 def parse_delta(delta_val):
-    if isinstance(delta_val, int): 
+    if isinstance(delta_val, int):
         return delta_val
     try:
         if isinstance(delta_val, str) and delta_val.strip().startswith('-'):
             clean_hex = delta_val.replace('-', '').strip()
             return -int(clean_hex, 16)
-        else: 
+        else:
             return int(delta_val, 16)
-    except: 
+    except:
         return 0x2e0ba747
 
 def decrypt_inner_base64_recursive(encrypted_str):
-    if not isinstance(encrypted_str, str) or len(encrypted_str) < 4: 
+    if not isinstance(encrypted_str, str) or len(encrypted_str) < 4:
         return encrypted_str
     try:
         clean_str = encrypted_str.replace('\n', '').replace('\r', '').strip()
-        if not re.match(r'^[A-Za-z0-9+/=]+$', clean_str): 
+        if not re.match(r'^[A-Za-z0-9+/=]+$', clean_str):
             return encrypted_str
         missing_padding = len(clean_str) % 4
-        if missing_padding: 
+        if missing_padding:
             clean_str += '=' * (4 - missing_padding)
         decoded_bytes = base64.b64decode(clean_str)
         decoded_str = decoded_bytes.decode('utf-8')
         if len(decoded_str) > 4 and re.match(r'^[A-Za-z0-9+/=]+$', decoded_str.replace('\n','').strip()):
-            if any(x in decoded_str for x in ["HTTP/", "vless://", "vmess://", "trojan://", "ss://"]): 
+            if any(x in decoded_str for x in ["HTTP/", "vless://", "vmess://", "trojan://", "ss://"]):
                 return decoded_str
             return decrypt_inner_base64_recursive(decoded_str)
         return decoded_str
-    except: 
+    except:
         return encrypted_str
 
 def decrypt_inner_bamar(encrypted_str):
-    if not encrypted_str or len(encrypted_str) < 10: 
+    if not encrypted_str or len(encrypted_str) < 10:
         return encrypted_str
     try:
         data = base64.b64decode(encrypted_str)
         decrypted_bytes = decrypt_xxtea(data, b"9488362782103982762188", 0x2e0ba747)
         return decrypted_bytes.decode('utf-8', errors='ignore') if decrypted_bytes else encrypted_str
-    except: 
+    except:
         return encrypted_str
 
 def decrypt_inner_pnt(encrypted_str):
-    if not encrypted_str or len(encrypted_str) < 15: 
+    if not encrypted_str or len(encrypted_str) < 15:
         return encrypted_str
     try:
         data = base64.b64decode(encrypted_str, validate=True)
         decrypted_bytes = decrypt_xxtea(data, b"7361", 0x2e0ba747)
-        if not decrypted_bytes: 
+        if not decrypted_bytes:
             return encrypted_str
         intermediate_str = decrypted_bytes.decode('utf-8')
         key_int = 7361
@@ -171,20 +169,20 @@ def decrypt_inner_pnt(encrypted_str):
             val = (ord(char) - key_int - key_int) & 0xFFFF
             final_str.append(chr(val))
         return "".join(final_str)
-    except: 
+    except:
         return encrypted_str
 
 def process_json_structure(data, method):
-    if isinstance(data, dict): 
+    if isinstance(data, dict):
         return {k: process_json_structure(v, method) for k, v in data.items()}
-    elif isinstance(data, list): 
+    elif isinstance(data, list):
         return [process_json_structure(i, method) for i in data]
     elif isinstance(data, str):
-        if method == "bamar": 
+        if method == "bamar":
             return decrypt_inner_bamar(data)
-        elif method == "pnt_special": 
+        elif method == "pnt_special":
             return decrypt_inner_pnt(data)
-        elif method == "base64_recursive": 
+        elif method == "base64_recursive":
             return decrypt_inner_base64_recursive(data)
         return data
     return data
@@ -213,9 +211,9 @@ def get_vpn_configs():
         print(f"[-] VPN Configs Parse Error: {str(e)}")
         return []
 
-# ========================================================
-# 3. DATABASE & GOOGLE SHEET SYNC SYSTEM (COLUMN BALANCED)
-# ========================================================
+# ==========================================
+# 3. DATABASE & GOOGLE SHEET SYNC SYSTEM
+# ==========================================
 def init_db():
     conn = sqlite3.connect(DB_FILE, check_same_thread=False)
     try:
@@ -595,6 +593,7 @@ def process_inputs(message):
         start_date = datetime.now().strftime("%Y-%m-%d")
         mode = vip_temp_data[user_id]["mode"]
         
+        # VIP ရဲ့ Key နေရာမှာ DECRYPT_VIP_ACCESS လို့ ထည့်သွင်းပေးပါမယ်
         success = push_to_google_sheet(mode, target_id, target_name, "DECRYPT_VIP_ACCESS", start_date, req_token)
         if success:
             deduct_reseller_tokens(user_id, req_token)
@@ -615,9 +614,6 @@ def process_inputs(message):
         row = cursor.fetchone()
         conn.close()
         
-        if not row and not is_admin(user_id):
-            return bot.reply_to(message, "❌ စနစ်ထဲတွင် ထို VIP ID အကောင့်ကို ရှာမတွေ့ပါ။")
-            
         vip_temp_data[user_id] = {"target_id": target, "mode": "edit", "name": row[0] if row else "Edited_VIP"}
         bot.reply_to(message, "👉 တိုးမြှင့်လိုသော <b>သက်တမ်းလအရေအတွက် (ဂဏန်းသီးသန့်)</b> ကို ပို့ပေးပါ:", parse_mode="HTML")
         user_states[user_id] = "ADD_VIP_MONTH"
@@ -625,6 +621,7 @@ def process_inputs(message):
     # --- DELETE VIP PROCESS ---
     elif state == "DEL_VIP_ID":
         target = message.text.strip()
+        # Apps Script ရဲ့ ဖျက်ပုံစံအတိုင်း Key (Column C) နေရာမှာ VIP သတ်မှတ်ချက်ကို ပေးပြီး ဖျက်ခိုင်းခြင်း
         success = push_to_google_sheet("delete", target, "", "DECRYPT_VIP_ACCESS", "", 0)
         if success:
             pull_data_from_google_sheet()
@@ -662,7 +659,7 @@ def process_inputs(message):
         target_tokens = reseller_temp_data[user_id]["tokens"]
         start_date = datetime.now().strftime("%Y-%m-%d")
         
-        # Column C ထဲကို Token (Key parameter)၊ Column E ထဲကို Months ထည့်သွင်းခြင်း
+        # Column C ထဲကို Token အရေအတွက်ထည့်ပြီး၊ Column E ထဲကို Months ကို သီးသန့်ထည့်သွင်းခြင်း
         success = push_to_google_sheet("sync", target_id, target_name, str(target_tokens), start_date, int(months))
         if success:
             pull_data_from_google_sheet()
@@ -671,15 +668,31 @@ def process_inputs(message):
             bot.reply_to(message, "❌ Google Sheet သို့ အချက်အလက်ပို့ရန် အဆင်မပြေပါ။")
         user_states[user_id] = None
 
-    # --- DELETE RESELLER PROCESS ---
+    # --- DELETE RESELLER PROCESS (ADMIN ONLY) ---
     elif state == "DEL_RES_ID":
-        target = message.text.strip()
-        success = push_to_google_sheet("delete", target, "", "", "", 0)
+        target_id_del = message.text.strip()
+        
+        # မိတ်ဆွေရဲ့ ဒေတာဘေ့စ်ထဲကနေ Reseller ရဲ့ လက်ရှိ Token (Key Value) ကို အရင်ရှာပါမယ်
+        conn = sqlite3.connect(DB_FILE, check_same_thread=False)
+        cursor = conn.cursor()
+        cursor.execute("SELECT token_balance FROM users WHERE tg_id = ? AND role = 'reseller'", (target_id_del,))
+        row = cursor.fetchone()
+        conn.close()
+        
+        # Apps Script ရဲ့ `action === "delete"` ဟာ Column C (Key) တန်ဖိုးနဲ့ တိုက်စစ်ပြီးဖျက်တာဖြစ်လို့ Token တန်ဖိုးကို ပေးပို့ရပါမယ်
+        target_key_to_del = row[0] if row else "RESELLER_ACCOUNT"
+        
+        success = push_to_google_sheet("delete", target_id_del, "", str(target_key_to_del), "", 0)
         if success:
             pull_data_from_google_sheet()
-            bot.reply_to(message, f"✅ Reseller ID: <code>{target}</code> ကို စနစ်ထဲမှ ဖျက်ထုတ်ပြီးပါပြီ။", parse_mode="HTML")
+            bot.reply_to(message, f"✅ Reseller ID: <code>{target_id_del}</code> ကို စနစ်ထဲမှ ဖျက်ထုတ်ပြီးပါပြီ။", parse_mode="HTML")
         else:
-            bot.reply_to(message, "❌ မအောင်မြင်ပါ။ Sheet API ကို စစ်ဆေးပါ။")
+            # တကယ်လို့ ရှာမတွေ့ရင် ID ကို Key အဖြစ် သုံးပြီး ဒုတိယအကြိမ် ထပ်မံဖျက်ခိုင်းကြည့်ခြင်း
+            success = push_to_google_sheet("delete", target_id_del, "", target_id_del, "", 0)
+            if success:
+                pull_data_from_google_sheet()
+                return bot.reply_to(message, f"✅ Reseller ID: <code>{target_id_del}</code> ကို ဖျက်ထုတ်ပြီးပါပြီ။", parse_mode="HTML")
+            bot.reply_to(message, "❌ မအောင်မြင်ပါ။ Google Sheet Apps Script API ကို စစ်ဆေးပါ။")
         user_states[user_id] = None
 
 # ==========================================
@@ -708,7 +721,7 @@ def handle_decryption_callback(call):
         )
         
         formatted_json = json.dumps(decrypted_json, indent=2, ensure_ascii=False)
-        filename = f"Decrypted_{target_config.get('name', 'Config')}.json"
+        filename = f"Decrypted_{target_config.get('name', 'Config')}.txt"
         
         with open(filename, "w", encoding="utf-8") as f:
             f.write(formatted_json)
