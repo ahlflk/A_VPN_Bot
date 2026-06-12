@@ -194,7 +194,7 @@ def check_vip_status_by_tg(user_id):
             is_expired = False
             if exp != "သက်တမ်းမရှိပါ":
                 try:
-                    exp_date = datetime.strptime(exp, "%Y-%m-%d")
+                    exp_date = datetime.strptime(exp, "%d/%m/%Y")
                     if datetime.now() > exp_date:
                         is_expired = True
                 except: pass
@@ -207,15 +207,15 @@ def check_vip_status_by_tg(user_id):
 def get_expired_date_string(created_str, months_val):
     try:
         if not created_str or created_str.strip() == "":
-            created_str = datetime.now().strftime("%Y-%m-%d")
+            created_str = datetime.now().strftime("%d/%m/%Y")
         if "-" in created_str:
-            dt = datetime.strptime(created_str.strip(), "%Y-%m-%d")
+            dt = datetime.strptime(created_str.strip(), "%d/%m/%Y")
         elif "/" in created_str:
             dt = datetime.strptime(created_str.strip(), "%d/%m/%Y")
         else:
             dt = datetime.now()
         exp = dt + timedelta(days=int(months_val) * 30)
-        return exp.strftime("%Y-%m-%d")
+        return exp.strftime("%d/%m/%Y")
     except Exception:
         return "သက်တမ်းမရှိပါ"
 
@@ -400,7 +400,7 @@ def handle_fluid_inputs(message):
         name = vip_temp_data[user_id]["name"]
         key = vip_temp_data[user_id]["key"]
         month = int(text)
-        start_date = datetime.now().strftime("%Y-%m-%d")
+        start_date = datetime.now().strftime("%d/%m/%Y")
 
         if is_reseller(user_id):
             current_tokens = get_reseller_tokens(user_id)
@@ -481,7 +481,7 @@ def handle_fluid_inputs(message):
         name = vip_temp_data[user_id]["name"]
         key = vip_temp_data[user_id]["key"]
         month = int(text)
-        start_date = datetime.now().strftime("%Y-%m-%d")
+        start_date = datetime.now().strftime("%d/%m/%Y")
 
         bot.reply_to(message, "⏳ Google Sheet တွင် ရှာဖွေပေါင်းထည့်နေပါသည်...", parse_mode="HTML")
         if push_to_google_sheet("sync", target_id, name, key, start_date, month):
@@ -572,7 +572,7 @@ def view_all_resellers(message):
     conn.close()
     if not rows: return bot.reply_to(message, "💼 Reseller မရှိသေးပါ။", parse_mode="HTML")
     res = "💼 <b>Resellers စာရင်းချုပ်:</b>\n\n"
-    for r in rows: res += f"🆔 TG ID: <code>{r[0]}</code> | 👤 အမည်: {r[1]} | 🪙 Balance: <b>{r[2]} Tokens</b>\n"
+    for r in rows: res += f"🆔 <code>{r[0]}</code> | 👤 {r[1]} | 🪙 <b>{r[2]} Tokens</b>\n"
     bot.reply_to(message, res, parse_mode="HTML")
 
 def admin_view_all_keys(message):
@@ -586,7 +586,7 @@ def admin_view_all_keys(message):
     res = f"🌐 <b>VPN APK VIP စာရင်းချုပ် ({len(rows)} ဦး):</b>\n\n"
     for r in rows:
         exp_str = get_expired_date_string(r[4], r[3])
-        res += f"🆔 TG ID: <code>{r[0]}</code> | 👤 အမည်: <code>{r[1]}</code> | 🔑 APK ID: <code>{r[2]}</code> | 📅 Expired: <code>{exp_str}</code>\n"
+        res += f"🆔 <code>{r[0]}</code> | 👤 <code>{r[1]}</code> | 🔑 <code>{r[2]}</code> | 📅 <code>{exp_str}</code>\n"
     bot.reply_to(message, res, parse_mode="HTML")
 
 def reseller_view_my_vips(message):
@@ -601,7 +601,7 @@ def reseller_view_my_vips(message):
     res = f"🔑 <b>သင့်ရဲ့ VIP အသုံးပြုသူ စာရင်း ({len(rows)} ဦး):</b>\n\n"
     for r in rows:
         exp_str = get_expired_date_string(r[4], r[3])
-        res += f"🆔 TG ID: <code>{r[0]}</code> | 👤 အမည်: <code>{r[1]}</code> | 🔑 APK ID: <code>{r[2]}</code> | 📅 Expired: <code>{exp_str}</code>\n"
+        res += f"🆔 <code>{r[0]}</code> | 👤 <code>{r[1]}</code> | 🔑 <code>{r[2]}</code> | 📅 <code>{exp_str}</code>\n"
     bot.reply_to(message, res, parse_mode="HTML")
 
 # ==========================================
