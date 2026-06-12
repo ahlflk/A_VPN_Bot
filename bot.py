@@ -29,19 +29,14 @@ user_states = {}
 reseller_temp_data = {}
 vip_temp_data = {} 
 
-# Keyboard Layout
 ADMIN_BUTTONS = [
-    ["➕ Add VIP User", "🔑 My VIP Users"],
-    ["✏️ Edit VIP", "🗑 Delete VIP"],
-    ["👤 Create Reseller", "📊 Reseller List"],
-    ["✏️ Edit Reseller", "🗑 Delete Reseller"],
-    ["🌐 View All VIPs", "💰 My Balance"]
+    "➕ Add VPN APK VIP", "✏️ Edit VPN APK", "🗑 Delete VPN APK", "🌐 View All VIPs",
+    "👤 Create Reseller", "📊 Reseller List", "✏️ Edit Reseller", "🗑 Delete Reseller",
+    "💰 My Balance"
 ]
 
 RESELLER_BUTTONS = [
-    ["➕ Add VIP User", "🔑 My VIP Users"],
-    ["✏️ Edit VIP", "🗑 Delete VIP"],
-    ["💰 My Balance"]
+    "➕ Add VPN APK VIP", "✏️ Edit VPN APK", "🗑 Delete VPN APK", "🔑 My VIP Users", "💰 My Balance"
 ]
 
 @app.route('/', methods=['GET', 'POST'])
