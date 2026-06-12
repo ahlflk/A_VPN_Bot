@@ -506,7 +506,7 @@ def handle_fluid_inputs(message):
             
         elif state == "AWAIT_RS_UNAME":
             reseller_temp_data[user_id]["uname"] = f"{text}_Reseller"
-            bot.reply_to(message, "🪙 သတ်မှတ်ပေးမည့် သို့မဟုတ် ထပ်ပေါင်းထည့်မည့် <b>Token Credit</b> အရေအတွက်:", parse_mode="HTML")
+            bot.reply_to(message, "🪙 သတ်မှတ်ပေးမည့် (သို့မဟုတ်) ထပ်ပေါင်းထည့်မည့် <b>Token Credit</b> အရေအတွက်:", parse_mode="HTML")
             user_states[user_id] = "AWAIT_RS_CREDITS"
             
         elif state == "AWAIT_RS_CREDITS":
@@ -571,7 +571,7 @@ def view_all_resellers(message):
     rows = cursor.fetchall()
     conn.close()
     if not rows: return bot.reply_to(message, "💼 Reseller မရှိသေးပါ။", parse_mode="HTML")
-    res = "💼 <b>Resellers စာရင်းချုပ်:</b>\n\n"
+    res = f"💼 <b>Resellers စာရင်း ({len(rows)} ဦး):</b>\n\n"
     for r in rows: res += f"🆔 <code>{r[0]}</code> | 👤 {r[1]} | 🪙 <b>{r[2]} Tokens</b>\n"
     bot.reply_to(message, res, parse_mode="HTML")
 
@@ -583,7 +583,7 @@ def admin_view_all_keys(message):
     rows = cursor.fetchall()
     conn.close()
     if not rows: return bot.reply_to(message, "📭 VIP အကောင့် မရှိသေးပါ။", parse_mode="HTML")
-    res = f"🌐 <b>VPN APK VIP စာရင်းချုပ် ({len(rows)} ဦး):</b>\n\n"
+    res = f"🌐 <b>VPN APK VIP စာရင်း ({len(rows)} ဦး):</b>\n\n"
     for r in rows:
         exp_str = get_expired_date_string(r[4], r[3])
         res += f"🆔 <code>{r[0]}</code> | 👤 <code>{r[1]}</code> | 🔑 <code>{r[2]}</code> | 📅 <code>{exp_str}</code>\n"
