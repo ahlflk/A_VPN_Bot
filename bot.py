@@ -319,7 +319,7 @@ def handle_menu_clicks(message):
                         f"⏳ VPN သက်တမ်းကုန်မည့်ရက်: <code>{exp_status}</code>"
             
             if is_expired or not is_vip:
-                user_text += "\n\n⚠️ <b>သင့်ရဲ့ VPN VIP အကောင့် သက်တမ်းကုန်ဆုံးသွားပါပြီ။</b>\n\nသက်တမ်း ဆက်တိုးလိုပါက သို့မဟုတ် အကောင့်အသစ်ဝယ်ယူလိုပါက အောက်ပါ Admin ထံသို့ တိုက်ရိုက်ဆက်သွယ်နိုင်ပါသည်ဗျာ।"
+                user_text += "\n\n⚠️ <b>သင့်ရဲ့ VPN VIP အကောင့် သက်တမ်းကုန်ဆုံးသွားပါပြီ။</b>\n\nသက်တမ်း ဆက်တိုးလိုပါက (သို့မဟုတ်) အကောင့်အသစ်ဝယ်ယူလိုပါက အောက်ပါ Admin ထံသို့ တိုက်ရိုက်ဆက်သွယ်နိုင်ပါသည်ဗျာ।"
                 bot.reply_to(message, user_text, reply_markup=get_admin_contact_markup(), parse_mode="HTML")
             else:
                 bot.reply_to(message, user_text, parse_mode="HTML")
