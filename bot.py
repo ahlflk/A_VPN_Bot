@@ -1,4 +1,4 @@
-# # All-in-One Safe Decryptor & Telegram VIP Management Bot (Fixed UX & Sheet Sync)
+# # All-in-One Safe Decryptor & Telegram VIP Management Bot (Fixed Token Deduction & Compact List View)
 # Py By @AHLFLK2025
 
 import os
@@ -33,7 +33,7 @@ user_states = {}
 reseller_temp_data = {}
 vip_temp_data = {}
 
-# Keyboard Layout - VPN Decrypt List ကို ထိပ်ဆုံးတွင် တစ်တန်းလုံးအပြည့် (Full Width) ထားရှိသည်
+# Keyboard Layout
 ADMIN_BUTTONS = [
     ["🌐 VPN Decrypt List"],
     ["➕ Add VIP User", "🔑 My VIP Users"],
@@ -67,7 +67,7 @@ def get_admin_contact_markup():
 
 @app.route('/')
 def home():
-    return "VPN Decrypt & VIP Management Bot is Active!"
+    return "VPN Decrypt & VIP Management Bot is Active with Real-Time Token Deductions!"
 
 @app.route('/' + BOT_TOKEN, methods=['POST'])
 def webhook():
@@ -386,16 +386,25 @@ def deduct_reseller_tokens_by_days(user_id, required_tokens):
                 cursor.execute("UPDATE users SET token_balance = ? WHERE tg_id = ?", (new_balance, user_id))
                 conn.commit()
                 
-                # Reseller ၏ ကျန်တိုကင်လက်ကျန်ကို Google Sheet သို့ပါ တစ်ပြိုင်တည်းလှမ်းညှိပေးခြင်း (Sync Balance)
+                # Sheet ထဲက မူလနေရာမှာ တိုကင်တန်ဖိုး အမှန်အတိုင်း သွားနှုတ်ပေးနိုင်ရန် 'sync_reseller' အဖြစ် ပို့ဆောင်ပါသည်
                 full_reseller_name = u_name + "_Reseller"
-                push_to_google_sheet("sync_reseller", user_id, full_reseller_name, str(new_balance), exp_date_str, 0)
+                
+                # သက်တမ်းလကို မပြောင်းလဲစေရန် မူလ Expire Date မှ Month အရေအတွက်ကို ပြန်ပြောင်းတွက်ချက်ပေးခြင်း
+                try:
+                    fmt = "%d/%m/%Y" if '/' in exp_date_str else "%Y-%m-%d"
+                    target_exp_dt = datetime.strptime(exp_date_str, fmt)
+                    diff_days = (target_exp_dt - datetime.now()).days
+                    current_remaining_months = max(1, round(diff_days / 30))
+                except:
+                    current_remaining_months = 1
+                
+                push_to_google_sheet("sync_reseller", user_id, full_reseller_name, str(new_balance), start=datetime.now().strftime("%d/%m/%Y"), month=current_remaining_months)
                 return True
         return False
     finally:
         conn.close()
 
 def make_vpn_grid_markup():
-    """ 🌐 အစား [1], [2] ပုံစံဖြင့် ကပ်လျက် ခလုတ် ၂ ခုစီ စီစဉ်ပေးသည် """
     configs = get_vpn_configs()
     markup = types.InlineKeyboardMarkup()
     if not configs: return markup
@@ -432,7 +441,6 @@ def send_welcome(message):
         tokens = get_reseller_tokens(user_id)
         tokens_line = f"🪙 Credit Balance: <code>{tokens}</code> Tokens\n"
 
-    # Bot Name ကို Auto ရယူပြီး ပြသခြင်း
     bot_name = bot.get_me().first_name
     welcome_text = f"👋 <b>{bot_name} မှ ကြိုဆိုပါတယ်ဗျာ!</b>\n\n" \
                    f"📊 <b>အကောင့်အခြေအနေ (Account Info):</b>\n" \
@@ -482,6 +490,7 @@ def handle_menu_clicks(message):
         rows = cursor.fetchall()
         conn.close()
         if not rows: return bot.reply_to(message, "📭 သင်ကိုယ်တိုင် ထည့်သွင်းထားသော VIP အသုံးပြုသူ မရှိသေးပါ။")
+        
         res = f"🔑 <b>သင့်ရဲ့ VIP အသုံးပြုသူ စာရင်း ({len(rows)} ဦး):</b>\n\n"
         for r in rows:
             days = calculate_days(r[2], "m")
@@ -489,7 +498,8 @@ def handle_menu_clicks(message):
                 fmt = "%d/%m/%Y" if '/' in r[3] else "%Y-%m-%d"
                 exp = (datetime.strptime(r[3], fmt) + timedelta(days=days)).strftime("%d/%m/%Y")
             except: exp = "Error"
-            res += f"🆔 TG ID: <code>{r[0]}</code>\n👤 အမည်: <code>{r[1]}</code>\n📅 Expired: <code>{exp}</code>\n\n"
+            # 🌟 တောင်းဆိုချက်အရ ကျစ်ကျစ်လျစ်လျစ် တစ်ကြောင်းတည်း ပေါ်ရန် ပြောင်းလဲထားပါသည်
+            res += f"🆔 <code>{r[0]}</code> | 👤 <code>{r[1]}</code> | 📅 <code>{exp}</code>\n"
         bot.reply_to(message, res, parse_mode="HTML")
 
     elif text == "✏️ Edit VIP":
