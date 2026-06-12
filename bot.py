@@ -238,7 +238,7 @@ def init_db():
     finally:
         conn.close()
 
-def pull_data_from_github():
+def pull_data_from_google_sheet():
     if not SCRIPT_URL: return
     try:
         res = requests.get(SCRIPT_URL, timeout=15)
@@ -284,7 +284,8 @@ def pull_data_from_github():
     except Exception as e:
         print(f"[-] Pull Error: {str(e)}")
 
-def push_to_google_sheet(action, users, name, key, start, month):
+# ✅ ပြင်ဆင်ပြီး အမှန် (added_by ပါဝင်အောင် ဖြည့်စွက်ထားသည်)
+def push_to_google_sheet(action, users, name, key, start, month, added_by=""):
     if not SCRIPT_URL: return False
     payload = {
         "action": action,
@@ -292,7 +293,8 @@ def push_to_google_sheet(action, users, name, key, start, month):
         "name": str(name),
         "key": str(key),
         "start": str(start),
-        "month": int(month)
+        "month": int(month),
+        "added_by": str(added_by)  # <-- Google Sheet က သိအောင် ဒီလိုင်း ထည့်ပေးရပါမယ်
     }
     try:
         res = requests.post(SCRIPT_URL, json=payload, timeout=15)
@@ -427,7 +429,7 @@ def make_vpn_grid_markup():
 def send_welcome(message):
     user_id = message.from_user.id
     user_states[user_id] = None
-    pull_data_from_github()
+    pull_data_from_google_sheet()
     
     is_vip, exp_status = check_vip_status(user_id)
     first_name = message.from_user.first_name
@@ -457,7 +459,7 @@ def send_welcome(message):
 def handle_menu_clicks(message):
     user_id = message.from_user.id
     text = message.text
-    pull_data_from_github()
+    pull_data_from_google_sheet()
     
     if text == "💰 My Balance":
         is_vip, exp_status = check_vip_status(user_id)
@@ -526,7 +528,7 @@ def handle_menu_clicks(message):
         conn.close()
         if not rows: return bot.reply_to(message, "📭 Reseller စာရင်း မရှိသေးပါ။")
         res = f"📊 <b>Reseller စာရင်းအားလုံး ({len(rows)} ဦး):</b>\n\n"
-        for r in rows: res += f"🆔 <code>{r[0]}</code> | 👤 {r[1]} | 🪙 {r[2]} Tk | 📅 {r[3]}\n"
+        for r in rows: res += f"🆔 <code>{r[0]}</code> | 👤 {r[1]} | 🪙 {r[2]} Tokens | 📅 {r[3]}\n"
         bot.reply_to(message, res, parse_mode="HTML")
 
     elif text == "✏️ Edit Reseller":
@@ -548,7 +550,7 @@ def handle_menu_clicks(message):
         conn.close()
         if not rows: return bot.reply_to(message, "📭 VIP အကောင့် မရှိသေးပါ။")
         res = f"🌐 <b>VIP အသုံးပြုသူ အားလုံးစာရင်း ({len(rows)} ဦး):</b>\n\n"
-        for r in rows: res += f"🆔 <code>{r[0]}</code> | 👤 <code>{r[1]}</code> | {r[2]} {r[3]}\n"
+        for r in rows: res += f"🆔 <code>{r[0]}</code> | 👤 <code>{r[1]}</code> | 📅 {r[3]}\n"
         bot.reply_to(message, res, parse_mode="HTML")
 
 # ==========================================
@@ -560,8 +562,8 @@ def handle_inputs(message):
     state = user_states.get(user_id)
     text = message.text.strip()
     
-    # ------------------ ADD VIP PROCESS ------------------
-    if state == "ADD_VIP_ID":
+    # ------------------ ADD VIP PROCESS (ကုဒ်အမှန်) ------------------
+    elif state == "ADD_VIP_ID":
         vip_temp_data[user_id] = {"target_id": text}
         user_states[user_id] = "ADD_VIP_NAME"
         bot.reply_to(message, "👤 အသုံးပြုသူ၏ <b>အမည် (Name)</b> ကို ရိုက်ထည့်ပေးပါ-", parse_mode="HTML")
@@ -577,17 +579,28 @@ def handle_inputs(message):
         months = int(text)
         required_tokens = months
         
+        # မူရင်း ဒေသတွင်း database ထဲမှာ တိုကင် နှုတ်ခြင်းစနစ်
         if not deduct_reseller_tokens_by_days(user_id, required_tokens):
             user_states[user_id] = None
-            return bot.reply_to(message, "❌ သင့်မှာ လုံလောက်တဲ့ Token မရှိပါ သို့မဟုတ် သက်တမ်းကုန်နေပါသည်။")
+            return bot.reply_to(message, "❌ သင့်မှာ လုံလောက်တဲ့ Token မရှိပါ (သို့မဟုတ်) သက်တမ်းကုန်နေပါသည်။")
             
         target_id = vip_temp_data[user_id]["target_id"]
         name = vip_temp_data[user_id]["name"]
         start_date = datetime.now().strftime("%d/%m/%Y")
         
-        success = push_to_google_sheet("sync", target_id, name, target_id, start_date, months)
+        # ✅ ပြင်ဆင်ထားသော နေရာ - Parameter များကို အစီအစဉ်မှန်ကန်စွာဖြင့် added_by ပါ ပို့ပေးလိုက်ခြင်းဖြစ်သည်
+        success = push_to_google_sheet(
+            action="sync", 
+            users=target_id, 
+            name=name, 
+            key=target_id,     # သင့်စနစ်အရ Key နေရာတွင်လည်း Target ID ကိုပဲ ပို့ရပါမည်
+            start=start_date, 
+            month=months,
+            added_by=user_id   # <-- သွင်းပေးသူ Reseller ရဲ့ Telegram ID ကို Sheets ဆီ ပို့ပေးလိုက်ခြင်း
+        )
+        
         if success:
-            pull_data_from_github()
+            pull_data_from_google_sheet()
             bot.reply_to(message, f"✅ VIP အကောင့် အောင်မြင်စွာ ဖန်တီးပြီးပါပြီ။\n🆔 TG ID: <code>{target_id}</code>\n👤 အမည်: <code>{name}</code>\n⏳ သက်တမ်း: <code>{months}</code> လ", parse_mode="HTML")
         else:
             bot.reply_to(message, "❌ Google Sheet သို့ Data ပို့ဆောင်မှု မအောင်မြင်ပါ။")
@@ -618,7 +631,7 @@ def handle_inputs(message):
         start_date = datetime.now().strftime("%d/%m/%Y")
         success = push_to_google_sheet("sync", target_id, "Edit_VIP", target_id, start_date, months)
         if success:
-            pull_data_from_github()
+            pull_data_from_google_sheet()
             bot.reply_to(message, "✅ VIP အကောင့် သက်တမ်း တိုးမြှင့်ပြီးပါပြီ။")
         else:
             bot.reply_to(message, "❌ ပြင်ဆင်မှု မအောင်မြင်ပါ။")
@@ -629,7 +642,7 @@ def handle_inputs(message):
         target_id = text
         success = push_to_google_sheet("delete", target_id, "Delete", target_id, "", 0)
         if success:
-            pull_data_from_github()
+            pull_data_from_google_sheet()
             bot.reply_to(message, f"✅ VIP ID: <code>{target_id}</code> အား ဖျက်သိမ်းပြီးပါပြီ။", parse_mode="HTML")
         else:
             bot.reply_to(message, "❌ ဖျက်သိမ်းမှု မအောင်မြင်ပါ။")
@@ -666,7 +679,7 @@ def handle_inputs(message):
         
         success = push_to_google_sheet("sync_reseller", r_id, r_name, str(tokens), start_date, months)
         if success:
-            pull_data_from_github()
+            pull_data_from_google_sheet()
             bot.reply_to(message, f"✅ Reseller အကောင့် ဖန်တီးပြီးပါပြီ။\n🆔 ID: <code>{r_id}</code>\n🪙 တိုကင်: {tokens} Tk\n⏳ သက်တမ်း: {months} လ", parse_mode="HTML")
         else:
             bot.reply_to(message, "❌ Google Sheet ချိတ်ဆက်မှု လွဲချော်နေပါသည်။")
@@ -687,7 +700,7 @@ def handle_inputs(message):
         start_date = datetime.now().strftime("%d/%m/%Y")
         success = push_to_google_sheet("sync_reseller", r_id, "Edit_Reseller", str(tokens), start_date, 1)
         if success:
-            pull_data_from_github()
+            pull_data_from_google_sheet()
             bot.reply_to(message, "✅ Reseller တိုကင် ဖြည့်သွင်းမှု အောင်မြင်ပါသည်။")
         else:
             bot.reply_to(message, "❌ ပြင်ဆင်မှု မအောင်မြင်ပါ။")
@@ -699,7 +712,7 @@ def handle_inputs(message):
         r_id = text
         success = push_to_google_sheet("delete_reseller", r_id, "RESELLER_ACCOUNT", "RESELLER_ACCOUNT", "", 0)
         if success:
-            pull_data_from_github()
+            pull_data_from_google_sheet()
             bot.reply_to(message, f"✅ Reseller ID: <code>{r_id}</code> အား ဖျက်ထုတ်ပြီးပါပြီ။", parse_mode="HTML")
         else:
             bot.reply_to(message, "❌ ဖျက်သိမ်းမှု လွဲချော်ခဲ့သည်။")
@@ -730,7 +743,6 @@ def callback_decrypt(call):
             f.write(json_str)
             
         with open(file_name, "rb") as f:
-            # ⚙️ Method နှင့် 👤 Request By များကို လုံးဝဖယ်ထုတ်ပြီး Caption ကို သန့်ရှင်းပေးထားပါသည်
             bot.send_document(
                 call.message.chat.id, 
                 f, 
@@ -747,7 +759,7 @@ def callback_decrypt(call):
 # ==========================================
 if __name__ == "__main__":
     init_db()
-    pull_data_from_github()
+    pull_data_from_google_sheet()
     
     if PUBLIC_URL and BOT_TOKEN:
         bot.remove_webhook()
