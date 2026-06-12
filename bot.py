@@ -1,4 +1,4 @@
-# # All-in-One Safe Decryptor & Telegram VIP Management Bot (Fixed UX & Sheet Format)
+# # All-in-One Safe Decryptor & Telegram VIP Management Bot (Fixed UX & Sheet Sync)
 # Py By @AHLFLK2025
 
 import os
@@ -33,7 +33,7 @@ user_states = {}
 reseller_temp_data = {}
 vip_temp_data = {}
 
-# Menu ขလုတ်များကို Role အလိုက် သီးသန့်ခွဲခြားသတ်မှတ်ခြင်း
+# Keyboard Layout - VPN Decrypt List ကို ထိပ်ဆုံးတွင် တစ်တန်းလုံးအပြည့် (Full Width) ထားရှိသည်
 ADMIN_BUTTONS = [
     ["🌐 VPN Decrypt List"],
     ["➕ Add VIP User", "🔑 My VIP Users"],
@@ -67,7 +67,7 @@ def get_admin_contact_markup():
 
 @app.route('/')
 def home():
-    return "VIP Bot with Dynamic Keyboards and Persistent VPN Grid is Active!"
+    return "VPN Decrypt & VIP Management Bot is Active!"
 
 @app.route('/' + BOT_TOKEN, methods=['POST'])
 def webhook():
@@ -84,7 +84,7 @@ def run_server():
     app.run(host='0.0.0.0', port=port)
 
 # ==========================================
-# CRYPTOGRAPHY & DECRYPTION ENGINE (XXTEA) - မပြောင်းလဲပါ
+# CRYPTOGRAPHY & DECRYPTION ENGINE (XXTEA)
 # ==========================================
 def u32(x): return x & 0xFFFFFFFF
 
@@ -259,7 +259,6 @@ def pull_data_from_github():
                     c_at = row.get("Start") or datetime.now().strftime("%d/%m/%Y")
                     m_val = row.get("Month") or 0
                     
-                    # ကွက်လပ်ဖြစ်နေသော တန်းများကို လုံးဝ စစ်ထုတ်ဖယ်ရှားရန်
                     if not t_id or str(t_id).strip() == "" or str(k_str).strip() == "":
                         continue
                         
@@ -292,7 +291,7 @@ def push_to_google_sheet(action, users, name, key, start, month):
         "users": str(users),
         "name": str(name),
         "key": str(key),
-        "start": str(start), # 12/06/2026 Format ဝင်လာမည်
+        "start": str(start),
         "month": int(month)
     }
     try:
@@ -333,7 +332,6 @@ def check_vip_status(user_id):
         if user_row and user_row[0] == 'reseller':
             exp_date_str = user_row[2]
             try:
-                # Format နှစ်မျိုးလုံးကို အဆင်ပြေအောင် Check ခြင်း
                 fmt = "%d/%m/%Y" if '/' in exp_date_str else "%Y-%m-%d"
                 expire_date = datetime.strptime(exp_date_str, fmt).date()
                 if datetime.now().date() > expire_date: return False, "Expired"
@@ -373,10 +371,10 @@ def deduct_reseller_tokens_by_days(user_id, required_tokens):
     conn = sqlite3.connect(DB_FILE, check_same_thread=False)
     try:
         cursor = conn.cursor()
-        cursor.execute("SELECT token_balance, expire_date FROM users WHERE tg_id = ?", (user_id,))
+        cursor.execute("SELECT token_balance, expire_date, username FROM users WHERE tg_id = ?", (user_id,))
         res = cursor.fetchone()
         if res:
-            tokens, exp_date_str = res
+            tokens, exp_date_str, u_name = res
             try:
                 fmt = "%d/%m/%Y" if '/' in exp_date_str else "%Y-%m-%d"
                 expire_date = datetime.strptime(exp_date_str, fmt).date()
@@ -384,24 +382,27 @@ def deduct_reseller_tokens_by_days(user_id, required_tokens):
             except: return False
             
             if tokens >= required_tokens:
-                cursor.execute("UPDATE users SET token_balance = token_balance - ? WHERE tg_id = ?", (required_tokens, user_id))
+                new_balance = tokens - required_tokens
+                cursor.execute("UPDATE users SET token_balance = ? WHERE tg_id = ?", (new_balance, user_id))
                 conn.commit()
+                
+                # Reseller ၏ ကျန်တိုကင်လက်ကျန်ကို Google Sheet သို့ပါ တစ်ပြိုင်တည်းလှမ်းညှိပေးခြင်း (Sync Balance)
+                full_reseller_name = u_name + "_Reseller"
+                push_to_google_sheet("sync_reseller", user_id, full_reseller_name, str(new_balance), exp_date_str, 0)
                 return True
         return False
     finally:
         conn.close()
 
 def make_vpn_grid_markup():
-    """ VPN List ကို ဘေးချင်းကပ် ၂ ခုစီ စီစဉ်ပြီး Layout တည်ဆောက်သည် """
+    """ 🌐 အစား [1], [2] ပုံစံဖြင့် ကပ်လျက် ခလုတ် ၂ ခုစီ စီစဉ်ပေးသည် """
     configs = get_vpn_configs()
     markup = types.InlineKeyboardMarkup()
-    if not configs:
-        return markup
+    if not configs: return markup
     
-    # ခလုတ် ၂ ခုစီ တွဲ၍ Grid ပြုလုပ်ခြင်း
     row_buttons = []
     for i, cfg in enumerate(configs):
-        btn = types.InlineKeyboardButton(text=f"🌐 {cfg['name']}", callback_data=f"dec_{i}")
+        btn = types.InlineKeyboardButton(text=f"[{i+1}] {cfg['name']}", callback_data=f"dec_{i}")
         row_buttons.append(btn)
         if len(row_buttons) == 2:
             markup.row(*row_buttons)
@@ -431,7 +432,9 @@ def send_welcome(message):
         tokens = get_reseller_tokens(user_id)
         tokens_line = f"🪙 Credit Balance: <code>{tokens}</code> Tokens\n"
 
-    welcome_text = f"👋 <b>VIP Management Bot မှ ကြိုဆိုပါတယ်ဗျာ!</b>\n\n" \
+    # Bot Name ကို Auto ရယူပြီး ပြသခြင်း
+    bot_name = bot.get_me().first_name
+    welcome_text = f"👋 <b>{bot_name} မှ ကြိုဆိုပါတယ်ဗျာ!</b>\n\n" \
                    f"📊 <b>အကောင့်အခြေအနေ (Account Info):</b>\n" \
                    f"👑 အဆင့်အတန်း: <b>{account_status}</b>\n" \
                    f"👤 အမည်: <b>{first_name}</b>\n" \
@@ -570,8 +573,6 @@ def handle_inputs(message):
             
         target_id = vip_temp_data[user_id]["target_id"]
         name = vip_temp_data[user_id]["name"]
-        
-        # Format ကို 12/06/2026 သို့ ပြောင်းလဲသတ်မှတ်ခြင်း
         start_date = datetime.now().strftime("%d/%m/%Y")
         
         success = push_to_google_sheet("sync", target_id, name, target_id, start_date, months)
@@ -624,7 +625,7 @@ def handle_inputs(message):
             bot.reply_to(message, "❌ ဖျက်သိမ်းမှု မအောင်မြင်ပါ။")
         user_states[user_id] = None
 
-    # ------------------ CREATE RESELLER PROCESS (ADMINONLY) ------------------
+    # ------------------ CREATE RESELLER PROCESS (ADMIN ONLY) ------------------
     elif state == "ADD_RES_ID":
         if not is_admin(user_id): return
         reseller_temp_data[user_id] = {"tg_id": text}
@@ -711,7 +712,6 @@ def callback_decrypt(call):
         
         bot.answer_callback_query(call.id, "⏳ Decrypting Configuration...")
         
-        # စာသားများ မပြောင်းလဲစေဘဲ နဂိုအတိုင်း Decrypt လုပ်ဆောင်ခြင်း
         decrypted_data = perform_decryption(cfg['url'], cfg['outer_key'], cfg['outer_delta'], cfg['method'])
         json_str = json.dumps(decrypted_data, indent=2, ensure_ascii=False)
         
@@ -720,16 +720,14 @@ def callback_decrypt(call):
             f.write(json_str)
             
         with open(file_name, "rb") as f:
+            # ⚙️ Method နှင့် 👤 Request By များကို လုံးဝဖယ်ထုတ်ပြီး Caption ကို သန့်ရှင်းပေးထားပါသည်
             bot.send_document(
                 call.message.chat.id, 
                 f, 
-                caption=f"✅ <b>{cfg['name']} Decrypted Successfully!</b>\n⚙️ Method: <code>{cfg['method']}</code>\n👤 Request By: <code>{user_id}</code>", 
+                caption=f"✅ <b>{cfg['name']} Decrypted Successfully!</b>", 
                 parse_mode="HTML"
             )
         os.remove(file_name)
-        
-        # 🌟 စာရင်းပြန်မပျောက်စေရန် ဤနေရာတွင် Inline Grid Markup ကို ပြန်ထုတ်ပေးထားပါသည်
-        bot.send_message(call.message.chat.id, "⬇️ ထပ်မံလုပ်ဆောင်လိုသော VPN App ကို ရွေးချယ်နိုင်ပါသေးသည်-", reply_markup=make_vpn_grid_markup())
         
     except Exception as e:
         bot.send_message(call.message.chat.id, f"❌ Decrypt လုပ်ဆောင်မှု လွဲချော်သွားပါသည်-\n<code>{str(e)}</code>", parse_mode="HTML", reply_markup=get_admin_contact_markup())
