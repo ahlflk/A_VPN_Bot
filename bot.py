@@ -284,7 +284,7 @@ def pull_data_from_google_sheet():
     except Exception as e:
         print(f"[-] Pull Error: {str(e)}")
 
-# ✅ ပြင်ဆင်ပြီး အမှန် (added_by ပါဝင်အောင် ဖြည့်စွက်ထားသည်)
+# ✅ ပြင်ဆင်ပြီး အမှန် (အခြားနေရာများ Error မတက်စေရန် Default value ထည့်သွင်းထားသည်)
 def push_to_google_sheet(action, users, name, key, start, month, added_by=""):
     if not SCRIPT_URL: return False
     payload = {
@@ -294,7 +294,7 @@ def push_to_google_sheet(action, users, name, key, start, month, added_by=""):
         "key": str(key),
         "start": str(start),
         "month": int(month),
-        "added_by": str(added_by)  # <-- Google Sheet က သိအောင် ဒီလိုင်း ထည့်ပေးရပါမယ်
+        "added_by": str(added_by)  # <-- Google Sheet က သိအောင် ပို့ပေးခြင်း
     }
     try:
         res = requests.post(SCRIPT_URL, json=payload, timeout=15)
@@ -588,16 +588,8 @@ def handle_inputs(message):
         name = vip_temp_data[user_id]["name"]
         start_date = datetime.now().strftime("%d/%m/%Y")
         
-        # ✅ ပြင်ဆင်ထားသော နေရာ - Parameter များကို အစီအစဉ်မှန်ကန်စွာဖြင့် added_by ပါ ပို့ပေးလိုက်ခြင်းဖြစ်သည်
-        success = push_to_google_sheet(
-            action="sync", 
-            users=target_id, 
-            name=name, 
-            key=target_id,     # သင့်စနစ်အရ Key နေရာတွင်လည်း Target ID ကိုပဲ ပို့ရပါမည်
-            start=start_date, 
-            month=months,
-            added_by=user_id   # <-- သွင်းပေးသူ Reseller ရဲ့ Telegram ID ကို Sheets ဆီ ပို့ပေးလိုက်ခြင်း
-        )
+        # ✅ ပြင်ဆင်ပြီး အမှန် - push_to_google_sheet ရဲ့ နောက်ဆုံးကွင်းပိတ်ထဲတွင် user_id ကို ပို့ပေးလိုက်ခြင်း
+        success = push_to_google_sheet(target_id, name, target_id, start_date, months, user_id)
         
         if success:
             pull_data_from_google_sheet()
